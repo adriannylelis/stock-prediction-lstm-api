@@ -1,0 +1,30 @@
+{
+  "architecture": "LSTM-1x16",
+  "input_size": 1,
+  "hidden_size": 16,
+  "num_layers": 1,
+  "dropout": 0.0,
+  "lookback": 60,
+  "features": [
+    "Close"
+  ],
+  "metrics": {
+    "mae": 0.3796845078468323,
+    "rmse": 0.5278357863426208,
+    "mape": 1.2103580236434937,
+    "best_val_loss": 0.00027055893276285915
+  },
+  "baseline_comparison": {
+    "naive_mape": 1.0569486650936823,
+    "lstm_mape": 1.2103580236434937,
+    "difference": 0.1534093585498113
+  },
+  "training": {
+    "scaler": "MinMaxScaler fitted ONLY on training set",
+    "train_samples": 996,
+    "val_samples": 213,
+    "test_samples": 215,
+    "params": 1233,
+    "params_per_sample": 1.2379518072289157
+  }
+}
