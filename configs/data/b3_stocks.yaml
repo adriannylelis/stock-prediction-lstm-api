@@ -1,0 +1,72 @@
+# @package _global_
+
+# B3 Stock data configuration
+
+# Stock ticker (B3 format: TICKER.SA)
+ticker: PETR4.SA
+
+# Date range for data collection
+start_date: "2020-01-01"
+end_date: null  # null = current date
+
+# Price features to use
+price_features:
+  - Close
+  - Open
+  - High
+  - Low
+  - Volume
+
+# Technical indicators configuration
+technical_indicators:
+  enable: true
+  
+  sma:
+    enable: true
+    windows: [20, 50, 200]
+  
+  ema:
+    enable: true
+    windows: [12, 26]
+  
+  rsi:
+    enable: true
+    period: 14
+  
+  macd:
+    enable: true
+    fast: 12
+    slow: 26
+    signal: 9
+  
+  bollinger_bands:
+    enable: true
+    window: 20
+    num_std: 2.0
+  
+  atr:
+    enable: true
+    period: 14
+
+# Preprocessing
+preprocessing:
+  lookback_period: 60  # Number of days to look back
+  feature_columns:
+    - Close  # Can add more: ['Close', 'SMA_20', 'RSI_14']
+  target_column: Close
+  
+  # Train/Val/Test split ratios (must sum to 1.0)
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+  
+  # Normalization
+  scaler: MinMaxScaler  # Options: MinMaxScaler, StandardScaler
+  feature_range: [0, 1]
+
+# Data validation
+validation:
+  check_missing: true
+  check_negative_prices: true
+  check_zero_volume: true
+  min_data_points: 100

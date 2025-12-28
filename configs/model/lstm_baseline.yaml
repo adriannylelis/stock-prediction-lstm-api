@@ -1,0 +1,19 @@
+# @package _global_
+
+# LSTM Baseline Model Configuration
+# This is the model architecture from the notebook
+
+model:
+  name: StockLSTM
+  type: lstm
+  
+  # Architecture parameters
+  architecture:
+    input_size: 1  # Number of features (1 for Close only, 5 for OHLCV, etc.)
+    hidden_size: 50  # Number of units in LSTM hidden state
+    num_layers: 2  # Number of stacked LSTM layers
+    dropout: 0.2  # Dropout probability for regularization
+  
+  # Model metadata
+  description: "Baseline LSTM model for stock price prediction"
+  version: "1.0"
