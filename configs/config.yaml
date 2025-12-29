@@ -1,0 +1,35 @@
+# Main configuration file
+# Uses Hydra for hierarchical configuration management
+
+defaults:
+  - data: b3_stocks
+  - model: lstm_baseline
+  - training: default
+  - mlflow: local
+  - _self_
+
+# Project metadata
+project_name: stock-prediction-lstm
+version: 0.1.0
+
+# Random seed for reproducibility
+random_seed: 42
+
+# Device configuration
+device: auto  # Options: auto, cpu, cuda
+
+# Logging
+log_level: INFO  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+log_file: logs/stock_ml.log
+
+# Paths (relative to project root)
+paths:
+  data_raw: data/raw
+  data_processed: data/processed
+  predictions: data/predictions
+  artifacts: artifacts
+  models: artifacts/models
+  scalers: artifacts/scalers
+  plots: artifacts/plots
+  mlruns: mlruns
+  logs: logs
