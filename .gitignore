@@ -6,6 +6,8 @@ __pycache__/
 # C extensions
 *.so
 
+# 
+*.pdf
 # Distribution / packaging
 .Python
 build/
@@ -208,3 +210,30 @@ __marimo__/
 
 .github/instructions/.*
 .github/instructions*
+
+# Project-specific
+# MLflow
+mlruns/
+mlartifacts/
+
+# Models and artifacts
+models/
+artifacts/
+artifacts_test/
+
+# Data
+data/raw/
+data/processed/
+data/versioned/
+data_test/
+
+# Logs
+logs/
+*.log
+
+# Debug scripts
+debug*.py
+
+# OS-specific
+.DS_Store
+Thumbs.db

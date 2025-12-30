@@ -1,0 +1,24 @@
+# Ruff ignore file
+# Directories to ignore
+.git
+.venv
+venv
+__pycache__
+*.egg-info
+build
+dist
+.pytest_cache
+.mypy_cache
+.ruff_cache
+htmlcov
+.coverage
+
+# MLflow and artifacts
+mlruns
+artifacts
+models
+logs
+data
+
+# Notebooks
+*.ipynb_checkpoints

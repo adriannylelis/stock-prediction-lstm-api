@@ -1,0 +1,39 @@
+# @package _global_
+
+# MLflow configuration for local tracking
+
+mlflow:
+  # Tracking server
+  tracking_uri: "file:./mlruns"  # Local file-based tracking (no server needed)
+  
+  # Experiment configuration
+  experiment_name: "stock-prediction-lstm"
+  
+  # Run naming
+  run_name_prefix: "run"  # Will be: run-20251228-143022
+  
+  # Artifacts
+  artifact_location: "./mlartifacts"
+  
+  # Logging configuration
+  log_params: true
+  log_metrics: true
+  log_models: true
+  log_artifacts: true
+  
+  # Model registry
+  registry:
+    enable: true
+    model_name: "stock-lstm"  # Name in MLflow model registry
+  
+  # Tags to add to every run
+  default_tags:
+    project: "tech-challenge-fase-4"
+    team: "pessoa-a"
+    framework: "pytorch"
+    
+  # Autologging (MLflow automatic logging)
+  autolog:
+    enable: false  # We'll use manual logging for more control
+    log_every_n_epoch: 1
+    log_models: true
