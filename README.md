@@ -18,6 +18,7 @@ Sistema completo de **ML Engineering** para previsão de preços de ações usan
 - [Instalação](#-instalação)
 - [Guia de Uso](#-guia-de-uso)
 - [CLI Commands](#-cli-commands)
+- [API REST](#-api-rest)
 - [Testes](#-testes)
 - [Documentação](#-documentação)
 - [Tecnologias](#-tecnologias)
@@ -33,6 +34,7 @@ Este projeto implementa uma solução end-to-end para previsão de preços de a�
 - ✅ **Treinamento**: MLflow tracking, Optuna tuning, métricas completas (MAE, RMSE, MAPE, R², Directional Accuracy)
 - ✅ **Monitoramento**: Drift detection (KS-test, PSI), data versioning, artifact management
 - ✅ **CLI**: 5 comandos (train, predict, tune, drift, pipeline)
+- ✅ **API REST**: Flask API com 3 endpoints (health, model/info, predict)
 - ✅ **Qualidade**: 83 testes (100% passando), 72.79% coverage, Ruff linter
 
 ---
@@ -66,6 +68,20 @@ stock-prediction-lstm-api/
 │       └── seed.py              # Reproducibility
 ├── cli/
 │   └── main.py                  # CLI interface (5 commands)
+├── src/api/                     # REST API (Flask)
+│   ├── main.py                  # Application factory
+│   ├── routes/                  # API endpoints
+│   │   ├── health.py            # GET /health
+│   │   ├── model_info.py        # GET /model/info
+│   │   └── prediction.py        # POST /predict
+│   ├── services/                # Business logic
+│   │   ├── model_service.py     # Model loading (singleton)
+│   │   ├── data_service.py      # Data fetching (yfinance)
+│   │   └── predict_service.py   # Prediction pipeline
+│   ├── models/
+│   │   └── lstm_model.py        # LSTM model class
+│   └── utils/
+│       └── validators.py        # Input validation
 ├── tests/                       # 83 tests (100% passing)
 │   ├── integration/             # 8 integration tests
 │   ├── unit/                    # 75+ unit tests
@@ -115,6 +131,14 @@ stock-prediction-lstm-api/
 - Data versioning com timestamps
 - Artifact management (models, scalers, configs)
 - Auto-cleanup de versões antigas
+
+### **API REST**
+- Flask Application Factory Pattern
+- CORS habilitado para integração frontend
+- 3 endpoints: health check, model info, predictions
+- Singleton pattern para carregamento de modelo
+- Validação de entrada e tratamento de erros
+- Logging estruturado
 
 ---
 
@@ -405,6 +429,222 @@ Exemplo:
 
 ---
 
+## 🌐 API REST
+
+### **Iniciar o Servidor**
+
+```bash
+# Desenvolvimento (com hot reload)
+PYTHONPATH=$PWD python src/api/main.py
+
+# Servidor roda em http://localhost:5001
+```
+
+---
+
+### **Endpoints Disponíveis**
+
+#### **1. GET /health - Health Check**
+
+Verifica se a API está funcionando.
+
+```bash
+curl http://localhost:5001/health
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-12-30T03:24:59.083016",
+  "service": "stock-prediction-lstm-api"
+}
+```
+
+---
+
+#### **2. GET /model/info - Informações do Modelo**
+
+Retorna metadados do modelo LSTM treinado.
+
+```bash
+curl http://localhost:5001/model/info
+```
+
+**Response (200 OK):**
+```json
+{
+  "architecture": "LSTM-1x16",
+  "input_size": 1,
+  "hidden_size": 16,
+  "num_layers": 1,
+  "dropout": 0.0,
+  "lookback": 60,
+  "features": ["Close"],
+  "metrics": {
+    "mape": 1.21,
+    "mae": 0.38,
+    "rmse": 0.53,
+    "r2": 0.90
+  },
+  "training": {
+    "params": 1233,
+    "train_samples": 996,
+    "test_samples": 215
+  }
+}
+```
+
+---
+
+#### **3. POST /predict - Fazer Previsão**
+
+Realiza previsão de preço para um ticker.
+
+```bash
+curl -X POST http://localhost:5001/predict \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "AAPL"}'
+```
+
+**Request Body:**
+```json
+{
+  "ticker": "AAPL"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "ticker": "AAPL",
+  "predicted_price": 88.59,
+  "current_price": 273.76,
+  "change_percent": -67.64,
+  "change_direction": "down",
+  "prediction_date": "2025-12-30",
+  "confidence": "low",
+  "timestamp": "2025-12-30T03:25:09.188309"
+}
+```
+
+**Campos do Response:**
+- `ticker`: Ticker da ação
+- `predicted_price`: Preço previsto para o próximo dia
+- `current_price`: Último preço conhecido
+- `change_percent`: Variação percentual esperada
+- `change_direction`: Direção da mudança (up/down/neutral)
+- `prediction_date`: Data da previsão (T+1)
+- `confidence`: Nível de confiança (high/medium/low)
+- `timestamp`: Timestamp UTC da previsão
+
+**Níveis de Confiança:**
+- `high`: Mudança < 2%
+- `medium`: Mudança entre 2% e 5%
+- `low`: Mudança > 5%
+
+---
+
+### **Tratamento de Erros**
+
+#### **400 - Bad Request (Ticker Inválido)**
+```bash
+curl -X POST http://localhost:5001/predict \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "INVALID123"}'
+```
+
+**Response:**
+```json
+{
+  "error": "Invalid Ticker",
+  "message": "Ticker deve conter apenas letras, números, pontos e hífens",
+  "status": 400
+}
+```
+
+#### **400 - Missing Field**
+```bash
+curl -X POST http://localhost:5001/predict \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+**Response:**
+```json
+{
+  "error": "Missing Field",
+  "message": "Campo 'ticker' é obrigatório",
+  "status": 400
+}
+```
+
+#### **500 - Internal Server Error**
+```json
+{
+  "error": "Prediction Error",
+  "message": "Erro ao realizar previsão",
+  "status": 500
+}
+```
+
+---
+
+### **Arquitetura da API**
+
+```
+src/api/
+├── main.py                    # Application Factory
+│   ├── create_app()           # Factory function
+│   ├── register_blueprints()  # Route registration
+│   └── register_error_handlers()  # Global error handling
+├── routes/                    # Endpoints (Blueprints)
+│   ├── health.py              # Health check
+│   ├── model_info.py          # Model metadata
+│   └── prediction.py          # Predictions
+├── services/                  # Business Logic
+│   ├── model_service.py       # Singleton: Model + Scaler loading
+│   ├── data_service.py        # Yahoo Finance integration
+│   └── predict_service.py     # Prediction pipeline orchestration
+├── models/
+│   └── lstm_model.py          # StockLSTM PyTorch model
+└── utils/
+    └── validators.py          # Input validation (ticker format)
+```
+
+**Design Patterns:**
+- **Application Factory**: Criação flexível da app Flask
+- **Singleton**: ModelService carrega modelo apenas 1x
+- **Blueprint**: Modularização de rotas
+- **Service Layer**: Separação de lógica de negócio
+
+---
+
+### **Exemplo de Uso Completo**
+
+```bash
+# 1. Iniciar API
+PYTHONPATH=$PWD python src/api/main.py &
+
+# 2. Verificar health
+curl http://localhost:5001/health
+
+# 3. Ver informações do modelo
+curl http://localhost:5001/model/info | python -m json.tool
+
+# 4. Fazer previsão para AAPL
+curl -X POST http://localhost:5001/predict \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "AAPL"}' | python -m json.tool
+
+# 5. Fazer previsão para ação brasileira
+curl -X POST http://localhost:5001/predict \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "PETR4.SA"}' | python -m json.tool
+```
+
+---
+
 ## 🧪 Testes
 
 ### **Executar Todos os Testes**
@@ -480,6 +720,7 @@ Coverage: 72.79%
 | **Testing** | pytest, pytest-cov | 8.0+, 7.0+ |
 | **Code Quality** | Ruff | 0.1+ |
 | **CLI** | Click | 8.1+ |
+| **API Framework** | Flask, Flask-CORS | 3.0+, 6.0+ |
 | **Logging** | Loguru | 0.7+ |
 
 ---
