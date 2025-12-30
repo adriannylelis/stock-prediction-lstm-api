@@ -13,6 +13,13 @@ import logging
 from src.api.services.model_service import ModelService
 from src.api.services.data_service import DataService
 from src.api.utils.validators import normalize_ticker
+from src.api.utils.exceptions import (
+    ModelInferenceError,
+    InvalidTickerError,
+    TickerNotFoundError,
+    InsufficientDataError,
+    ServiceUnavailableError
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +75,7 @@ class PredictService:
             ticker = normalize_ticker(ticker)
             logger.info(f"Iniciando previsão para {ticker}")
             
-            # 2. Buscar dados históricos
+            # 2. Buscar dados históricos (pode lançar exceções customizadas)
             df = self.data_service.fetch_data(ticker)
             current_price = float(df['Close'].iloc[-1])
             
@@ -122,11 +129,20 @@ class PredictService:
                 "timestamp": datetime.utcnow().isoformat()
             }
             
-        except ValueError as e:
-            # Erros de validação (ticker inválido, dados insuficientes)
-            logger.warning(f"Erro de validação na previsão: {str(e)}")
+        except (InvalidTickerError, TickerNotFoundError, InsufficientDataError, 
+                ServiceUnavailableError, ModelInferenceError):
+            # Re-raise exceções customizadas que já estão corretas
             raise
+            
         except Exception as e:
-            # Erros inesperados
-            logger.error(f"Erro ao realizar previsão para {ticker}: {str(e)}", exc_info=True)
-            raise RuntimeError(f"Falha na previsão: {str(e)}")
+            # Erro inesperado - tentar inferir o tipo
+            error_msg = str(e).lower()
+            
+            # Erros de inferência do modelo (tensor/shape errors)
+            if "tensor" in error_msg or "shape" in error_msg or "dimension" in error_msg:
+                logger.error(f"Erro de inferência do modelo para {ticker}: {str(e)}", exc_info=True)
+                raise ModelInferenceError(ticker=ticker, error_detail=str(e))
+            
+            # Erro genérico
+            logger.error(f"Erro inesperado ao realizar previsão para {ticker}: {str(e)}", exc_info=True)
+            raise ModelInferenceError(ticker=ticker, error_detail=str(e))

@@ -13,7 +13,7 @@ def validate_ticker(ticker: str) -> Tuple[bool, str]:
     Valida formato de um ticker de ação.
     
     Regras:
-        - Deve ter entre 1 e 10 caracteres
+        - Deve ter entre 2 e 10 caracteres
         - Apenas letras maiúsculas, números, pontos e hífens
         - Não pode começar com número
         - Exemplos válidos: AAPL, PETR4.SA, BRK-B
@@ -27,6 +27,9 @@ def validate_ticker(ticker: str) -> Tuple[bool, str]:
     Examples:
         >>> validate_ticker("AAPL")
         (True, "")
+        
+        >>> validate_ticker("A")
+        (False, "Ticker deve ter entre 2 e 10 caracteres")
         
         >>> validate_ticker("123")
         (False, "Ticker não pode começar com número")
@@ -42,12 +45,17 @@ def validate_ticker(ticker: str) -> Tuple[bool, str]:
     if not ticker:
         return False, "Ticker não pode ser vazio"
     
-    # Verificar tamanho
+    # Verificar tamanho mínimo
+    if len(ticker) < 2:
+        return False, "Ticker deve ter entre 2 e 10 caracteres"
+    
+    # Verificar tamanho máximo
     if len(ticker) > 10:
         return False, "Ticker não pode ter mais de 10 caracteres"
     
     # Verificar formato (letras, números, ponto, hífen)
-    pattern = r'^[A-Z][A-Z0-9\.\-]{0,9}$'
+    # Deve começar com letra, seguido de letras, números, ponto ou hífen
+    pattern = r'^[A-Z][A-Z0-9\.\-]{1,9}$'
     if not re.match(pattern, ticker.upper()):
         return False, "Ticker deve conter apenas letras, números, pontos e hífens"
     

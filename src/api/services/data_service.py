@@ -10,6 +10,12 @@ from datetime import datetime, timedelta
 from typing import Optional
 import logging
 
+from src.api.utils.exceptions import (
+    TickerNotFoundError,
+    InsufficientDataError,
+    ServiceUnavailableError
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -40,8 +46,9 @@ class DataService:
             pd.DataFrame: DataFrame com colunas [Open, High, Low, Close, Volume].
         
         Raises:
-            ValueError: Se não conseguir obter dados suficientes.
-            RuntimeError: Se ocorrer erro na busca.
+            TickerNotFoundError: Se ticker não for encontrado.
+            InsufficientDataError: Se não houver dados suficientes.
+            ServiceUnavailableError: Se Yahoo Finance estiver indisponível.
         """
         try:
             # Calcular período (adicionar margem para dias não-úteis)
@@ -56,14 +63,14 @@ class DataService:
             
             # Validar dados
             if df.empty:
-                raise ValueError(f"Nenhum dado encontrado para ticker '{ticker}'")
+                raise TickerNotFoundError(ticker)
             
             # Verificar se tem dados suficientes
             if len(df) < self.lookback_days:
-                raise ValueError(
-                    f"Dados insuficientes para {ticker}. "
-                    f"Necessário: {self.lookback_days} dias, "
-                    f"Obtido: {len(df)} dias"
+                raise InsufficientDataError(
+                    ticker=ticker,
+                    days_available=len(df),
+                    days_required=self.lookback_days
                 )
             
             # Pegar últimos N dias
@@ -73,11 +80,21 @@ class DataService:
             
             return df
             
-        except ValueError:
-            raise  # Re-raise validation errors
+        except (TickerNotFoundError, InsufficientDataError):
+            raise  # Re-raise custom exceptions
+        except ConnectionError as e:
+            logger.error(f"Erro de conexão ao buscar dados para {ticker}: {str(e)}")
+            raise ServiceUnavailableError(service="Yahoo Finance", retry_after=60)
+        except TimeoutError as e:
+            logger.error(f"Timeout ao buscar dados para {ticker}: {str(e)}")
+            raise ServiceUnavailableError(service="Yahoo Finance", retry_after=30)
         except Exception as e:
-            logger.error(f"Erro ao buscar dados para {ticker}: {str(e)}")
-            raise RuntimeError(f"Falha ao buscar dados do ticker: {str(e)}")
+            logger.error(f"Erro inesperado ao buscar dados para {ticker}: {str(e)}")
+            # Se for erro de rede, tratar como serviço indisponível
+            if "connection" in str(e).lower() or "timeout" in str(e).lower():
+                raise ServiceUnavailableError(service="Yahoo Finance")
+            # Caso contrário, pode ser ticker inválido
+            raise TickerNotFoundError(ticker)
     
     def get_latest_price(self, ticker: str) -> Optional[float]:
         """

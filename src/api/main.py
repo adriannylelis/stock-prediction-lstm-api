@@ -86,7 +86,53 @@ def register_error_handlers(app):
     Args:
         app (Flask): Instância da aplicação Flask.
     """
+    from src.api.utils.exceptions import (
+        APIException,
+        InvalidTickerError,
+        TickerNotFoundError,
+        InsufficientDataError,
+        ModelInferenceError,
+        ServiceUnavailableError
+    )
     
+    # Handlers para exceções customizadas da API
+    @app.errorhandler(APIException)
+    def handle_api_exception(error):
+        """Handler para todas as exceções customizadas da API."""
+        app.logger.warning(f"API Exception: {error.__class__.__name__} - {str(error)}")
+        return jsonify(error.to_dict()), error.status_code
+    
+    @app.errorhandler(InvalidTickerError)
+    def handle_invalid_ticker(error):
+        """Handler específico para ticker inválido."""
+        app.logger.warning(f"Ticker inválido: {str(error)}")
+        return jsonify(error.to_dict()), error.status_code
+    
+    @app.errorhandler(TickerNotFoundError)
+    def handle_ticker_not_found(error):
+        """Handler específico para ticker não encontrado."""
+        app.logger.warning(f"Ticker não encontrado: {str(error)}")
+        return jsonify(error.to_dict()), error.status_code
+    
+    @app.errorhandler(InsufficientDataError)
+    def handle_insufficient_data(error):
+        """Handler específico para dados insuficientes."""
+        app.logger.warning(f"Dados insuficientes: {str(error)}")
+        return jsonify(error.to_dict()), error.status_code
+    
+    @app.errorhandler(ModelInferenceError)
+    def handle_model_inference_error(error):
+        """Handler específico para erro de inferência do modelo."""
+        app.logger.error(f"Erro de inferência: {str(error)}")
+        return jsonify(error.to_dict()), error.status_code
+    
+    @app.errorhandler(ServiceUnavailableError)
+    def handle_service_unavailable(error):
+        """Handler específico para serviço indisponível."""
+        app.logger.error(f"Serviço indisponível: {str(error)}")
+        return jsonify(error.to_dict()), error.status_code
+    
+    # Handlers para erros HTTP padrão
     @app.errorhandler(404)
     def not_found(error):
         return jsonify({
