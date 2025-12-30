@@ -1,8 +1,9 @@
 # Stock Prediction LSTM API 📈
 
-[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch 2.1+](https://img.shields.io/badge/PyTorch-2.1+-ee4c2c.svg)](https://pytorch.org/)
-[![Tests](https://img.shields.io/badge/tests-83%20passing-brightgreen.svg)](tests/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch 2.2+](https://img.shields.io/badge/PyTorch-2.2+-ee4c2c.svg)](https://pytorch.org/)
+[![Flask 3.1+](https://img.shields.io/badge/Flask-3.1+-000000.svg)](https://flask.palletsprojects.com/)
+[![Tests](https://img.shields.io/badge/tests-92%20passing-brightgreen.svg)](tests/)
 [![Coverage](https://img.shields.io/badge/coverage-72.79%25-yellow.svg)](tests/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
@@ -34,8 +35,8 @@ Este projeto implementa uma solução end-to-end para previsão de preços de a�
 - ✅ **Treinamento**: MLflow tracking, Optuna tuning, métricas completas (MAE, RMSE, MAPE, R², Directional Accuracy)
 - ✅ **Monitoramento**: Drift detection (KS-test, PSI), data versioning, artifact management
 - ✅ **CLI**: 5 comandos (train, predict, tune, drift, pipeline)
-- ✅ **API REST**: Flask API com 3 endpoints (health, model/info, predict)
-- ✅ **Qualidade**: 83 testes (100% passando), 72.79% coverage, Ruff linter
+- ✅ **API REST**: Flask API com 3 endpoints (health, model/info, predict), tratamento de erros HTTP robusto
+- ✅ **Qualidade**: 92 testes (100% passando), 72.79% coverage, Ruff linter
 
 ---
 
@@ -517,26 +518,31 @@ curl -X POST http://localhost:5001/predict \
 **Response (200 OK):**
 ```json
 {
-  "ticker": "AAPL",
-  "predicted_price": 88.59,
-  "current_price": 273.76,
-  "change_percent": -67.64,
-  "change_direction": "down",
-  "prediction_date": "2025-12-30",
-  "confidence": "low",
-  "timestamp": "2025-12-30T03:25:09.188309"
+  "success": true,
+  "data": {
+    "ticker": "AAPL",
+    "predicted_price": 88.59,
+    "current_price": 273.76,
+    "change_percent": -67.64,
+    "change_direction": "down",
+    "prediction_date": "2025-12-31",
+    "confidence": "low",
+    "timestamp": "2025-12-30T04:18:19.245103"
+  }
 }
 ```
 
 **Campos do Response:**
-- `ticker`: Ticker da ação
-- `predicted_price`: Preço previsto para o próximo dia
-- `current_price`: Último preço conhecido
-- `change_percent`: Variação percentual esperada
-- `change_direction`: Direção da mudança (up/down/neutral)
-- `prediction_date`: Data da previsão (T+1)
-- `confidence`: Nível de confiança (high/medium/low)
-- `timestamp`: Timestamp UTC da previsão
+- `success`: Indica se a operação foi bem-sucedida
+- `data`: Objeto com os dados da previsão
+  - `ticker`: Ticker da ação
+  - `predicted_price`: Preço previsto para o próximo dia
+  - `current_price`: Último preço conhecido
+  - `change_percent`: Variação percentual esperada
+  - `change_direction`: Direção da mudança (up/down/neutral)
+  - `prediction_date`: Data da previsão (T+1)
+  - `confidence`: Nível de confiança (high/medium/low)
+  - `timestamp`: Timestamp UTC da previsão
 
 **Níveis de Confiança:**
 - `high`: Mudança < 2%
@@ -551,15 +557,19 @@ curl -X POST http://localhost:5001/predict \
 ```bash
 curl -X POST http://localhost:5001/predict \
   -H "Content-Type: application/json" \
-  -d '{"ticker": "INVALID123"}'
+  -d '{"ticker": "A"}'
 ```
 
 **Response:**
 ```json
 {
-  "error": "Invalid Ticker",
-  "message": "Ticker deve conter apenas letras, números, pontos e hífens",
-  "status": 400
+  "error": "InvalidTicker",
+  "message": "Ticker 'A' é inválido ou não encontrado",
+  "status": 400,
+  "details": {
+    "ticker": "A",
+    "suggestion": "Ticker deve ter entre 2 e 10 caracteres"
+  }
 }
 ```
 
@@ -579,12 +589,41 @@ curl -X POST http://localhost:5001/predict \
 }
 ```
 
+#### **404 - Ticker Not Found**
+```bash
+curl -X POST http://localhost:5001/predict \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "INVALID"}'
+```
+
+**Response:**
+```json
+{
+  "error": "TickerNotFound",
+  "message": "Ticker 'INVALID' não encontrado",
+  "status": 404,
+  "details": {
+    "ticker": "INVALID",
+    "suggestion": "Verifique se o ticker está correto. Exemplos: AAPL, PETR4.SA, VALE3.SA"
+  }
+}
+```
+
 #### **500 - Internal Server Error**
 ```json
 {
-  "error": "Prediction Error",
-  "message": "Erro ao realizar previsão",
+  "error": "Internal Server Error",
+  "message": "Erro interno do servidor",
   "status": 500
+}
+```
+
+#### **503 - Service Unavailable**
+```json
+{
+  "error": "ServiceUnavailable",
+  "message": "Yahoo Finance indisponível no momento",
+  "status": 503
 }
 ```
 
@@ -609,7 +648,8 @@ src/api/
 ├── models/
 │   └── lstm_model.py          # StockLSTM PyTorch model
 └── utils/
-    └── validators.py          # Input validation (ticker format)
+    ├── validators.py          # Input validation (ticker format)
+    └── exceptions.py          # Custom exceptions hierarchy
 ```
 
 **Design Patterns:**
@@ -617,6 +657,14 @@ src/api/
 - **Singleton**: ModelService carrega modelo apenas 1x
 - **Blueprint**: Modularização de rotas
 - **Service Layer**: Separação de lógica de negócio
+- **Custom Exceptions**: Hierarquia de exceções com status codes HTTP apropriados
+
+**Custom Exceptions:**
+- `InvalidTickerError` (400): Formato de ticker inválido
+- `InsufficientDataError` (400): Menos de 60 dias de dados disponíveis
+- `TickerNotFoundError` (404): Ticker não existe no Yahoo Finance
+- `ModelInferenceError` (500): Erro na inferência do modelo
+- `ServiceUnavailableError` (503): Yahoo Finance indisponível
 
 ---
 
