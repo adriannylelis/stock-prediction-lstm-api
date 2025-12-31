@@ -1,10 +1,3 @@
-"""
-Aplicação Flask para servir modelo LSTM via API REST.
-
-Este módulo implementa o Application Factory Pattern, permitindo
-criar múltiplas instâncias da aplicação para diferentes ambientes.
-"""
-
 from flask import Flask, jsonify
 from flask_cors import CORS
 import logging
@@ -12,25 +5,14 @@ from pathlib import Path
 
 
 def create_app(config=None):
-    """
-    Factory para criar e configurar a aplicação Flask.
-    
-    Args:
-        config (dict, optional): Configurações customizadas para a app.
-    
-    Returns:
-        Flask: Instância configurada da aplicação.
-    """
     app = Flask(__name__)
     
-    # Configurações padrão
     app.config.update({
         'JSON_SORT_KEYS': False,
         'JSONIFY_PRETTYPRINT_REGULAR': True,
         'MAX_CONTENT_LENGTH': 16 * 1024 * 1024,  # 16MB max
     })
     
-    # Aplicar configurações customizadas
     if config:
         app.config.update(config)
     
@@ -49,25 +31,16 @@ def create_app(config=None):
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     
-    # Registrar blueprints
     register_blueprints(app)
     
-    # Registrar error handlers
     register_error_handlers(app)
     
-    # Log de inicialização
     app.logger.info("API Flask inicializada com sucesso")
     
     return app
 
 
 def register_blueprints(app):
-    """
-    Registra todos os blueprints (rotas) na aplicação.
-    
-    Args:
-        app (Flask): Instância da aplicação Flask.
-    """
     from src.api.routes.health import health_bp
     from src.api.routes.model_info import model_info_bp
     from src.api.routes.prediction import prediction_bp
@@ -80,12 +53,6 @@ def register_blueprints(app):
 
 
 def register_error_handlers(app):
-    """
-    Registra handlers globais de erro.
-    
-    Args:
-        app (Flask): Instância da aplicação Flask.
-    """
     from src.api.utils.exceptions import (
         APIException,
         InvalidTickerError,
@@ -94,41 +61,35 @@ def register_error_handlers(app):
         ModelInferenceError,
         ServiceUnavailableError
     )
-    
-    # Handlers para exceções customizadas da API
+
     @app.errorhandler(APIException)
     def handle_api_exception(error):
-        """Handler para todas as exceções customizadas da API."""
         app.logger.warning(f"API Exception: {error.__class__.__name__} - {str(error)}")
         return jsonify(error.to_dict()), error.status_code
     
     @app.errorhandler(InvalidTickerError)
     def handle_invalid_ticker(error):
-        """Handler específico para ticker inválido."""
         app.logger.warning(f"Ticker inválido: {str(error)}")
         return jsonify(error.to_dict()), error.status_code
     
     @app.errorhandler(TickerNotFoundError)
     def handle_ticker_not_found(error):
-        """Handler específico para ticker não encontrado."""
         app.logger.warning(f"Ticker não encontrado: {str(error)}")
         return jsonify(error.to_dict()), error.status_code
     
     @app.errorhandler(InsufficientDataError)
     def handle_insufficient_data(error):
-        """Handler específico para dados insuficientes."""
         app.logger.warning(f"Dados insuficientes: {str(error)}")
         return jsonify(error.to_dict()), error.status_code
     
     @app.errorhandler(ModelInferenceError)
     def handle_model_inference_error(error):
-        """Handler específico para erro de inferência do modelo."""
         app.logger.error(f"Erro de inferência: {str(error)}")
         return jsonify(error.to_dict()), error.status_code
     
     @app.errorhandler(ServiceUnavailableError)
     def handle_service_unavailable(error):
-        """Handler específico para serviço indisponível."""
+        app.logger.error(f"Serviço indisponível: {str(error)}")
         app.logger.error(f"Serviço indisponível: {str(error)}")
         return jsonify(error.to_dict()), error.status_code
     

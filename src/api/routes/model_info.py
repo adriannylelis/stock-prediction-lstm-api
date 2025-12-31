@@ -1,9 +1,3 @@
-"""
-Rota para informações do modelo.
-
-Endpoint para obter metadados e configurações do modelo LSTM.
-"""
-
 from flask import Blueprint, jsonify, current_app
 import json
 from pathlib import Path
@@ -13,31 +7,10 @@ model_info_bp = Blueprint('model_info', __name__)
 
 @model_info_bp.route('/model/info', methods=['GET'])
 def get_model_info():
-    """
-    Retorna informações sobre o modelo carregado.
-    
-    Lê o arquivo model_config.json e retorna seus dados.
-    
-    Retorna:
-        JSON com configuração e métricas do modelo.
-        
-    Exemplo de resposta:
-        {
-            "model_type": "LSTM",
-            "architecture": "LSTM-1x16",
-            "input_features": 1,
-            "sequence_length": 60,
-            "metrics": {
-                "mape": 1.21,
-                "r2": 0.90
-            }
-        }
-    """
+    """Retorna configuração e métricas do modelo."""
     try:
-        # Caminho para o arquivo de configuração
         config_path = Path(__file__).parent.parent.parent.parent / 'artifacts' / 'model_config.json'
         
-        # Verificar se arquivo existe
         if not config_path.exists():
             return jsonify({
                 "error": "Config Not Found",
@@ -45,7 +18,6 @@ def get_model_info():
                 "status": 404
             }), 404
         
-        # Ler configuração
         with open(config_path, 'r') as f:
             config = json.load(f)
         
