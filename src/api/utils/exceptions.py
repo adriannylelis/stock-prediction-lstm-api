@@ -1,34 +1,12 @@
-"""
-Exceções customizadas para a API.
-
-Define exceções específicas para diferentes tipos de erros.
-"""
-
-
 class APIException(Exception):
-    """Exceção base para erros da API."""
-    
     def __init__(self, message: str, status_code: int = 500, details: dict = None):
-        """
-        Inicializa exceção da API.
-        
-        Args:
-            message (str): Mensagem de erro.
-            status_code (int): Código HTTP do erro.
-            details (dict): Detalhes adicionais do erro.
-        """
+       
         super().__init__(message)
         self.message = message
         self.status_code = status_code
         self.details = details or {}
     
     def to_dict(self):
-        """
-        Converte exceção para dicionário JSON.
-        
-        Returns:
-            dict: Dicionário com estrutura de erro.
-        """
         error_dict = {
             "error": self.__class__.__name__.replace("Exception", "").replace("Error", ""),
             "message": self.message,
@@ -42,8 +20,6 @@ class APIException(Exception):
 
 
 class InvalidTickerError(APIException):
-    """Ticker inválido ou formato incorreto."""
-    
     def __init__(self, ticker: str, suggestion: str = None):
         details = {"ticker": ticker}
         if suggestion:
@@ -57,8 +33,6 @@ class InvalidTickerError(APIException):
 
 
 class InsufficientDataError(APIException):
-    """Dados insuficientes para realizar previsão."""
-    
     def __init__(self, ticker: str, days_available: int, days_required: int):
         super().__init__(
             message=f"Não há dados suficientes para previsão de {ticker}",
@@ -73,8 +47,6 @@ class InsufficientDataError(APIException):
 
 
 class TickerNotFoundError(APIException):
-    """Ticker não encontrado no Yahoo Finance."""
-    
     def __init__(self, ticker: str):
         super().__init__(
             message=f"Ticker '{ticker}' não encontrado",
@@ -87,8 +59,6 @@ class TickerNotFoundError(APIException):
 
 
 class ModelInferenceError(APIException):
-    """Erro durante inferência do modelo."""
-    
     def __init__(self, ticker: str, error_detail: str = None):
         details = {"ticker": ticker}
         if error_detail:
@@ -102,8 +72,6 @@ class ModelInferenceError(APIException):
 
 
 class ServiceUnavailableError(APIException):
-    """Serviço externo indisponível (ex: Yahoo Finance)."""
-    
     def __init__(self, service: str = "Yahoo Finance", retry_after: int = None):
         details = {"service": service}
         if retry_after:
