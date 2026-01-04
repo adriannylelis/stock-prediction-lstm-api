@@ -286,9 +286,9 @@ class TechnicalIndicators:
         nan_before = self.df.isnull().sum().sum()
 
         if method == "ffill":
-            self.df = self.df.fillna(method="ffill").fillna(method="bfill")
+            self.df = self.df.ffill().bfill()
         elif method == "bfill":
-            self.df = self.df.fillna(method="bfill").fillna(method="ffill")
+            self.df = self.df.bfill().ffill()
         elif method == "mean":
             self.df = self.df.fillna(self.df.mean())
         elif method == "zero":

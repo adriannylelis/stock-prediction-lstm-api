@@ -63,6 +63,20 @@ def predict(
     """
     device = get_device()
     
+    # Get project root directory (2 levels up from cli/predict.py)
+    project_root = Path(__file__).parent.parent.resolve()
+    
+    # Convert model_path to absolute path relative to project root
+    model_path_obj = Path(model_path)
+    if not model_path_obj.is_absolute():
+        model_path = str(project_root / model_path)
+    
+    # Same for output path if provided
+    if output:
+        output_path_obj = Path(output)
+        if not output_path_obj.is_absolute():
+            output = str(project_root / output)
+    
     logger.info(f"🔮 Batch Prediction: {ticker}")
     logger.info(f"Model: {model_path}")
     logger.info(f"Days ahead: {days_ahead}")
@@ -88,7 +102,16 @@ def predict(
         
         # 2. Get latest data
         logger.info("📥 Fetching latest data...")
-        ingestion = StockDataIngestion(ticker=ticker)
+        # Get last 2 years of data for prediction
+        from datetime import datetime, timedelta
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=730)  # ~2 years
+        
+        ingestion = StockDataIngestion(
+            ticker=ticker,
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d')
+        )
         df = ingestion.download_and_validate()
         
         # Feature engineering
@@ -101,15 +124,22 @@ def predict(
         logger.info("⚙️ Preprocessing...")
         preprocessor = StockPreprocessor(lookback_period=lookback)
         
-        # Use only last lookback points for prediction
-        last_sequence = df.tail(lookback)
+        # Select features and normalize
+        features_df = df[['Close']].copy()
+        features_array = features_df.values
         
-        # Normalize
-        normalized_df = preprocessor.fit_transform(last_sequence)
+        # Normalize using the same scaler from training (if available)
+        # For prediction, we need to fit on available data
+        normalized_data = preprocessor.normalize(features_array, fit=True)
         
-        # Create sequence
-        features = normalized_df[['Close']].values
-        X = torch.tensor(features, dtype=torch.float32).unsqueeze(0).to(device)
+        # Get last lookback points for prediction
+        if len(normalized_data) < lookback:
+            raise ValueError(f"Not enough data. Need at least {lookback} points, got {len(normalized_data)}")
+        
+        last_sequence = normalized_data[-lookback:]
+        
+        # Create tensor
+        X = torch.tensor(last_sequence, dtype=torch.float32).unsqueeze(0).to(device)  # (1, lookback, features)
         
         # 4. Predict
         logger.info(f"🔮 Generating {days_ahead}-day predictions...")
@@ -131,7 +161,7 @@ def predict(
         # Denormalize predictions
         scaler = preprocessor.scaler
         predictions_denorm = scaler.inverse_transform([[p] for p in predictions])
-        predictions_denorm = [p[0] for p in predictions_denorm]
+        predictions_denorm = [round(p[0], 2) for p in predictions_denorm]  # Round to 2 decimals (yfinance standard)
         
         # 5. Format results
         last_date = df.index[-1]

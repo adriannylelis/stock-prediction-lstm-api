@@ -57,6 +57,14 @@ def evaluate(
     """
     device = get_device()
     
+    # Get project root directory (2 levels up from cli/evaluate.py)
+    project_root = Path(__file__).parent.parent.resolve()
+    
+    # Convert model_path to absolute path relative to project root
+    model_path_obj = Path(model_path)
+    if not model_path_obj.is_absolute():
+        model_path = str(project_root / model_path)
+    
     logger.info(f"📊 Model Evaluation: {ticker}")
     logger.info(f"Model: {model_path}")
     

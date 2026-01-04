@@ -123,12 +123,21 @@ def train(
     set_seed(seed)
     device = get_device()
     
+    # Get project root directory (2 levels up from cli/train.py)
+    project_root = Path(__file__).parent.parent.resolve()
+    
+    # Convert model_path to absolute path relative to project root
+    model_path_obj = Path(model_path)
+    if not model_path_obj.is_absolute():
+        model_path = str(project_root / model_path)
+    
     if experiment_name is None:
         experiment_name = f"lstm-{ticker.replace('.SA', '').lower()}"
     
     logger.info(f"🚀 Training Pipeline: {ticker}")
     logger.info(f"Device: {device}")
     logger.info(f"Experiment: {experiment_name}")
+    logger.info(f"Model will be saved to: {model_path}")
     
     try:
         # 1. Data Ingestion
@@ -173,10 +182,15 @@ def train(
             dropout=dropout,
             device=device
         )
-        logger.info(f"✓ Model created: {model.count_parameters():,} parameters")
+        logger.info(f"✓ Model created: {model.get_num_parameters():,} parameters")
         
         # 5. Training
         logger.info("🏋️ Step 5/5: Training")
+        
+        # Create checkpoint directory
+        checkpoint_dir = Path(model_path).parent
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        
         trainer = Trainer(
             model=model,
             device=device,
@@ -184,7 +198,7 @@ def train(
             loss_function='MSE',
             early_stopping_patience=10,
             experiment_name=experiment_name,
-            model_save_path=model_path
+            checkpoint_dir=str(checkpoint_dir)
         )
         
         from torch.utils.data import DataLoader, TensorDataset
@@ -200,6 +214,13 @@ def train(
             val_loader=val_loader,
             epochs=epochs
         )
+        
+        # Save model to specified path
+        best_model_checkpoint = checkpoint_dir / "best_model.pt"
+        if best_model_checkpoint.exists():
+            import shutil
+            shutil.copy(best_model_checkpoint, model_path)
+            logger.info(f"Model saved to: {model_path}")
         
         # Results
         best_val_loss = min(history['val_loss'])
