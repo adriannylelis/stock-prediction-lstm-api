@@ -37,6 +37,12 @@ api = [
     "python-multipart>=0.0.6"
 ]
 
+[project.scripts]
+stock-predict = "cli.main:cli"
+
+[tool.setuptools]
+packages = ["cli", "src", "src.ml", "src.ml.data", "src.ml.models", "src.ml.training", "src.ml.pipeline", "src.ml.monitoring", "src.ml.utils"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py38"
