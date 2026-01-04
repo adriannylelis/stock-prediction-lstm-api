@@ -37,12 +37,6 @@ from src.ml.utils.seed import set_seed
     help='End date for data (YYYY-MM-DD, default: today)'
 )
 @click.option(
-    '--lookback',
-    type=int,
-    default=60,
-    help='Lookback period for sequences'
-)
-@click.option(
     '--hidden-size',
     type=int,
     default=50,
@@ -100,7 +94,6 @@ def train(
     ticker: str,
     start_date: str,
     end_date: str,
-    lookback: int,
     hidden_size: int,
     num_layers: int,
     dropout: float,
@@ -113,12 +106,16 @@ def train(
 ):
     """🚂 Train LSTM model on stock data.
     
+    Uses fixed lookback period of 60 days for sequence creation.
     Full training pipeline: data ingestion → feature engineering →
     preprocessing → training → evaluation.
     
     Example:
-        stock-ml train --ticker PETR4.SA --epochs 100 --lr 0.001
+        stock-predict train --ticker PETR4.SA --epochs 50
     """
+    # Fixed parameters
+    lookback = 60  # Always use 60-day sequences
+    
     # Setup
     set_seed(seed)
     device = get_device()
