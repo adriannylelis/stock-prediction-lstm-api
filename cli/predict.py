@@ -30,37 +30,26 @@ from src.ml.utils.device import get_device
     help='Stock ticker symbol (e.g., PETR4.SA)'
 )
 @click.option(
-    '--days-ahead',
-    type=int,
-    default=5,
-    help='Number of days to predict'
-)
-@click.option(
-    '--lookback',
-    type=int,
-    default=60,
-    help='Lookback period (must match training)'
-)
-@click.option(
     '--output',
     type=str,
     default=None,
-    help='Output CSV path (default: data/predictions/{ticker}_{date}.csv)'
+    help='Output CSV path (optional)'
 )
 def predict(
     model_path: str,
     ticker: str,
-    days_ahead: int,
-    lookback: int,
     output: str
 ):
-    """🔮 Generate batch predictions.
+    """🔮 Predict next day's closing price.
     
-    Load trained model and predict future prices.
+    Uses last 60 days of data to predict tomorrow's close.
     
     Example:
-        stock-ml predict --model-path artifacts/models/best_model.pt --ticker PETR4.SA --days-ahead 5
+        stock-predict predict --model-path models/petr4.pt --ticker PETR4.SA
     """
+    # Fixed parameters
+    lookback = 60  # Always use 60 days
+    days_ahead = 1  # Always predict next day only
     device = get_device()
     
     # Get project root directory (2 levels up from cli/predict.py)
@@ -77,9 +66,9 @@ def predict(
         if not output_path_obj.is_absolute():
             output = str(project_root / output)
     
-    logger.info(f"🔮 Batch Prediction: {ticker}")
+    logger.info(f"🔮 Next Day Prediction: {ticker}")
     logger.info(f"Model: {model_path}")
-    logger.info(f"Days ahead: {days_ahead}")
+    logger.info(f"Predicting: Tomorrow's close (using last 60 days)")
     
     try:
         # 1. Load model
@@ -141,8 +130,8 @@ def predict(
         # Create tensor
         X = torch.tensor(last_sequence, dtype=torch.float32).unsqueeze(0).to(device)  # (1, lookback, features)
         
-        # 4. Predict
-        logger.info(f"🔮 Generating {days_ahead}-day predictions...")
+        # 4. Predict next day
+        logger.info(f"🔮 Predicting tomorrow's close...")
         predictions = []
         
         with torch.no_grad():
@@ -187,9 +176,23 @@ def predict(
         results_df.to_csv(output_path, index=False)
         
         # Display
+        from datetime import datetime
+        today = datetime.now().date()
+        last_data_date = last_date.date()
+        predicted_date = prediction_dates[0].date()
+        
+        # Calculate data lag
+        data_lag_days = (today - last_data_date).days
+        
         logger.success(f"\n{'='*60}")
-        logger.info("📊 Predictions:")
-        logger.info(f"\n{results_df.to_string(index=False)}")
+        logger.info(f"📊 Prediction for {ticker}:")
+        logger.info(f"   Today's Date: {today}")
+        logger.info(f"   Last Available Data: {last_data_date} (${df['Close'].iloc[-1]:.2f})")
+        if data_lag_days > 0:
+            logger.warning(f"   Data Lag: {data_lag_days} day(s) - Market data not updated yet")
+        logger.info(f"   Predicted for {predicted_date}: ${predictions_denorm[0]:.2f}")
+        change_pct = ((predictions_denorm[0] / df['Close'].iloc[-1] - 1) * 100)
+        logger.info(f"   Expected Change: {change_pct:+.2f}%")
         logger.success(f"{'='*60}")
         logger.success(f"💾 Saved to: {output_path}")
         
