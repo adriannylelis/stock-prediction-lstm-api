@@ -48,38 +48,41 @@ export function PredictionChart({
   const padding = (maxPrice - minPrice) * 0.2 || 1;
 
   return (
-    <Card className="transition-all duration-300 hover:shadow-lg">
+    <Card className="transition-all duration-300 hover:shadow-lg hover:scale-[1.02]">
       <CardHeader>
-        <CardTitle>Price Prediction Chart</CardTitle>
+        <CardTitle className="text-lg sm:text-xl">Price Prediction Chart</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-2 sm:p-6">
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data}>
+          <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis 
               dataKey="date" 
               className="text-xs"
+              tick={{ fontSize: 12 }}
             />
             <YAxis 
               domain={[minPrice - padding, maxPrice + padding]}
               className="text-xs"
+              tick={{ fontSize: 12 }}
               tickFormatter={(value) => `$${value.toFixed(2)}`}
             />
             <Tooltip 
-              formatter={(value: number) => [`$${value.toFixed(2)}`, '']}
+              formatter={(value: number | undefined) => value !== undefined ? [`$${value.toFixed(2)}`, ''] : ['', '']}
               labelStyle={{ color: '#000' }}
               contentStyle={{ 
                 backgroundColor: 'rgba(255, 255, 255, 0.95)',
                 border: '1px solid #ccc',
                 borderRadius: '8px',
+                fontSize: '14px',
               }}
             />
-            <Legend />
+            <Legend wrapperStyle={{ fontSize: '12px' }} />
             <ReferenceLine 
               y={currentPrice} 
               stroke="#94a3b8" 
               strokeDasharray="3 3" 
-              label="Current"
+              label={{ value: 'Current', fontSize: 11 }}
             />
             <Line
               type="monotone"
@@ -88,6 +91,7 @@ export function PredictionChart({
               strokeWidth={3}
               name="Current Price"
               dot={{ r: 6 }}
+              animationDuration={1000}
             />
             <Line
               type="monotone"
@@ -97,6 +101,8 @@ export function PredictionChart({
               strokeDasharray="5 5"
               name="Predicted Price"
               dot={{ r: 6 }}
+              animationDuration={1000}
+              animationBegin={300}
             />
           </LineChart>
         </ResponsiveContainer>

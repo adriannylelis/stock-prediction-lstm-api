@@ -11,5 +11,13 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    host: true, // Allow external connections (Docker)
+    watch: {
+      usePolling: true, // Fix for Docker volume issues
+    },
+  },
+  preview: {
+    port: 3000,
+    host: true,
   },
 })

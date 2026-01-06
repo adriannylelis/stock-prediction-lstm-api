@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios';
-import type { PredictionResponse, HealthResponse, ModelInfo, ApiError } from '@/types';
+import type { PredictionResponse, HealthResponse, ModelInfo, ApiError, PredictionData } from '@/types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:5001';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -46,5 +46,3 @@ export const stockApi = {
     return response.data.data;
   },
 };
-
-export type { PredictionData } from '@/types';

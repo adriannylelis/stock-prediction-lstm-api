@@ -23,11 +23,11 @@ export function PredictionCard({ prediction }: PredictionCardProps) {
     : 'destructive';
 
   return (
-    <Card className="transition-all duration-300 hover:shadow-lg">
+    <Card className="transition-all duration-300 hover:shadow-lg hover:scale-[1.02]">
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span className="text-2xl">{prediction.ticker}</span>
-          <Badge variant={confidenceVariant} className="text-sm">
+        <CardTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <span className="text-2xl sm:text-3xl">{prediction.ticker}</span>
+          <Badge variant={confidenceVariant} className="text-xs sm:text-sm">
             {prediction.confidence.toUpperCase()} Confidence
           </Badge>
         </CardTitle>
@@ -36,32 +36,32 @@ export function PredictionCard({ prediction }: PredictionCardProps) {
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Current Price</p>
-              <p className="text-3xl font-bold">${prediction.current_price.toFixed(2)}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mb-1">Current Price</p>
+              <p className="text-2xl sm:text-3xl font-bold">${prediction.current_price.toFixed(2)}</p>
             </div>
             
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Predicted Price</p>
-              <p className="text-3xl font-bold">${prediction.predicted_price.toFixed(2)}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mb-1">Predicted Price</p>
+              <p className="text-2xl sm:text-3xl font-bold">${prediction.predicted_price.toFixed(2)}</p>
             </div>
           </div>
           
-          <div className={`flex items-center justify-center gap-3 p-4 rounded-lg ${colorClass}`}>
-            <Icon className="w-8 h-8" />
+          <div className={`flex items-center justify-center gap-3 p-4 rounded-lg transition-colors ${colorClass}`}>
+            <Icon className="w-6 h-6 sm:w-8 sm:h-8" />
             <div className="text-center">
-              <p className="text-2xl font-bold">
+              <p className="text-xl sm:text-2xl font-bold">
                 {prediction.change_percent > 0 ? '+' : ''}
                 {prediction.change_percent.toFixed(2)}%
               </p>
-              <p className="text-sm font-medium uppercase">
+              <p className="text-xs sm:text-sm font-medium uppercase">
                 {prediction.change_direction}
               </p>
             </div>
           </div>
           
           <div className="pt-4 border-t">
-            <p className="text-sm text-muted-foreground">Prediction Date</p>
-            <p className="text-lg font-semibold">
+            <p className="text-xs sm:text-sm text-muted-foreground">Prediction Date</p>
+            <p className="text-base sm:text-lg font-semibold break-words">
               {new Date(prediction.prediction_date).toLocaleDateString('en-US', {
                 weekday: 'long',
                 year: 'numeric',
