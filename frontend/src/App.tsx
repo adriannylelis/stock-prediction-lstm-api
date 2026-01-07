@@ -7,25 +7,13 @@ import { ErrorMessage } from './components/ErrorMessage';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 import { usePrediction } from './hooks/usePrediction';
+import { useStocks } from './hooks/useStocks';
 import { TrendingUp } from 'lucide-react';
-import type { Stock } from './types';
-
-const AVAILABLE_STOCKS: Stock[] = [
-  { symbol: 'AAPL', name: 'Apple Inc.' },
-  { symbol: 'MSFT', name: 'Microsoft Corporation' },
-  { symbol: 'GOOGL', name: 'Alphabet Inc. (Google)' },
-  { symbol: 'AMZN', name: 'Amazon.com Inc.' },
-  { symbol: 'TSLA', name: 'Tesla Inc.' },
-  { symbol: 'NVDA', name: 'NVIDIA Corporation' },
-  { symbol: 'META', name: 'Meta Platforms Inc.' },
-  { symbol: 'PETR4.SA', name: 'Petrobras (B3)' },
-  { symbol: 'VALE3.SA', name: 'Vale S.A. (B3)' },
-  { symbol: 'ITUB4.SA', name: 'Itaú Unibanco (B3)' },
-];
 
 function App() {
   const [selectedStock, setSelectedStock] = useState('');
   const { prediction, loading, error, predict } = usePrediction();
+  const { stocks, loading: loadingStocks, error: stocksError } = useStocks();
 
   const handlePredict = () => {
     if (selectedStock) {
@@ -63,17 +51,23 @@ function App() {
                 <label className="text-xs sm:text-sm font-medium mb-2 block">
                   Ticker da Ação
                 </label>
-                <StockSelector
-                  stocks={AVAILABLE_STOCKS}
-                  value={selectedStock}
-                  onChange={setSelectedStock}
-                  disabled={loading}
-                />
+                {loadingStocks ? (
+                  <div className="h-10 bg-muted animate-pulse rounded-md"></div>
+                ) : stocksError ? (
+                  <div className="text-xs text-red-500">Erro ao carregar ações</div>
+                ) : (
+                  <StockSelector
+                    stocks={stocks}
+                    value={selectedStock}
+                    onChange={setSelectedStock}
+                    disabled={loading}
+                  />
+                )}
               </div>
               <div className="flex items-end">
                 <Button
                   onClick={handlePredict}
-                  disabled={!selectedStock || loading}
+                  disabled={!selectedStock || loading || loadingStocks}
                   size="lg"
                   className="w-full md:w-auto min-w-[150px] transition-all duration-200 hover:scale-105"
                 >
@@ -110,6 +104,7 @@ function App() {
                 currentPrice={prediction.current_price}
                 predictedPrice={prediction.predicted_price}
                 predictionDate={prediction.prediction_date}
+                historicalData={prediction.historical_data}
               />
             </div>
 

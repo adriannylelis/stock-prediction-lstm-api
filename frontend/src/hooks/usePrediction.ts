@@ -7,7 +7,7 @@ export function usePrediction() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const predict = async (ticker: string) => {
+  const predict = async (ticker: string, includeHistory: boolean = true) => {
     if (!ticker) {
       setError('Please select a stock ticker');
       return;
@@ -18,7 +18,7 @@ export function usePrediction() {
     setPrediction(null);
 
     try {
-      const data = await stockApi.predictStock(ticker);
+      const data = await stockApi.predictStock(ticker, includeHistory);
       setPrediction(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch prediction');

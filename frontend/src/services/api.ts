@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import type { PredictionResponse, HealthResponse, ModelInfo, ApiError, PredictionData } from '@/types';
+import type { PredictionResponse, HealthResponse, ModelInfo, ApiError, PredictionData, Stock, StocksResponse } from '@/types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:5001';
 
@@ -41,8 +41,14 @@ export const stockApi = {
     return response.data;
   },
 
-  predictStock: async (ticker: string): Promise<PredictionData> => {
-    const response = await api.post<PredictionResponse>('/predict', { ticker });
+  getStocks: async (): Promise<Stock[]> => {
+    const response = await api.get<StocksResponse>('/stocks');
+    return response.data.data;
+  },
+
+  predictStock: async (ticker: string, includeHistory: boolean = false): Promise<PredictionData> => {
+    const url = includeHistory ? '/predict?include_history=true' : '/predict';
+    const response = await api.post<PredictionResponse>(url, { ticker });
     return response.data.data;
   },
 };

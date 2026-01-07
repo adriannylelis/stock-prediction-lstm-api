@@ -10,9 +10,11 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { HistoricalDataPoint } from '@/types';
 
 interface ChartDataPoint {
   date: string;
+  historical?: number;
   current?: number;
   predicted?: number;
 }
@@ -21,36 +23,63 @@ interface PredictionChartProps {
   currentPrice: number;
   predictedPrice: number;
   predictionDate: string;
+  historicalData?: HistoricalDataPoint[];
 }
 
 export function PredictionChart({ 
   currentPrice, 
   predictedPrice,
-  predictionDate 
+  predictionDate,
+  historicalData 
 }: PredictionChartProps) {
-  const data: ChartDataPoint[] = [
-    { 
-      date: 'Today', 
-      current: currentPrice,
-      predicted: currentPrice,
-    },
-    { 
-      date: new Date(predictionDate).toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric' 
-      }),
-      predicted: predictedPrice,
-    },
-  ];
+  // Construir dados do gráfico
+  const data: ChartDataPoint[] = [];
+  
+  // Adicionar dados históricos se disponíveis
+  if (historicalData && historicalData.length > 0) {
+    historicalData.forEach((point) => {
+      data.push({
+        date: new Date(point.date).toLocaleDateString('pt-BR', { 
+          month: 'short', 
+          day: 'numeric' 
+        }),
+        historical: point.close,
+      });
+    });
+  }
+  
+  // Adicionar preço atual
+  data.push({ 
+    date: 'Hoje', 
+    current: currentPrice,
+    predicted: currentPrice,
+  });
+  
+  // Adicionar previsão
+  data.push({ 
+    date: new Date(predictionDate).toLocaleDateString('pt-BR', { 
+      month: 'short', 
+      day: 'numeric' 
+    }),
+    predicted: predictedPrice,
+  });
 
-  const minPrice = Math.min(currentPrice, predictedPrice);
-  const maxPrice = Math.max(currentPrice, predictedPrice);
+  // Calcular range do eixo Y
+  const allPrices = [
+    currentPrice, 
+    predictedPrice,
+    ...(historicalData?.map(d => d.close) || [])
+  ];
+  const minPrice = Math.min(...allPrices);
+  const maxPrice = Math.max(...allPrices);
   const padding = (maxPrice - minPrice) * 0.2 || 1;
 
   return (
     <Card className="transition-all duration-300 hover:shadow-lg hover:scale-[1.02]">
       <CardHeader>
-        <CardTitle className="text-lg sm:text-xl">Price Prediction Chart</CardTitle>
+        <CardTitle className="text-lg sm:text-xl">
+          {historicalData ? 'Histórico e Previsão de Preço' : 'Gráfico de Previsão de Preço'}
+        </CardTitle>
       </CardHeader>
       <CardContent className="p-2 sm:p-6">
         <ResponsiveContainer width="100%" height={300}>
@@ -82,14 +111,25 @@ export function PredictionChart({
               y={currentPrice} 
               stroke="#94a3b8" 
               strokeDasharray="3 3" 
-              label={{ value: 'Current', fontSize: 11 }}
+              label={{ value: 'Atual', fontSize: 11 }}
             />
+            {historicalData && historicalData.length > 0 && (
+              <Line
+                type="monotone"
+                dataKey="historical"
+                stroke="#8b5cf6"
+                strokeWidth={2}
+                name="Histórico "
+                dot={false}
+                animationDuration={800}
+              />
+            )}
             <Line
               type="monotone"
               dataKey="current"
               stroke="#3b82f6"
               strokeWidth={3}
-              name="Current Price"
+              name="Preço Atual"
               dot={{ r: 6 }}
               animationDuration={1000}
             />
@@ -99,7 +139,7 @@ export function PredictionChart({
               stroke="#10b981"
               strokeWidth={3}
               strokeDasharray="5 5"
-              name="Predicted Price"
+              name="Previsão"
               dot={{ r: 6 }}
               animationDuration={1000}
               animationBegin={300}

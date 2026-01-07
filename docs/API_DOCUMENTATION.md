@@ -363,9 +363,22 @@ curl http://localhost:5001/model/info
 
 Realiza predição de preço de fechamento para o próximo dia útil.
 
-**Request:**
+**Query Parameters:**
+
+| Parâmetro | Tipo | Obrigatório | Padrão | Descrição |
+|-----------|------|-------------|--------|-----------|
+| include_history | boolean | ❌ | false | Inclui dados históricos dos últimos 30 dias (OHLCV) na resposta |
+
+**Request (sem histórico):**
 ```bash
 curl -X POST http://localhost:5001/predict \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "AAPL"}'
+```
+
+**Request (com histórico):**
+```bash
+curl -X POST "http://localhost:5001/predict?include_history=true" \
   -H "Content-Type: application/json" \
   -d '{"ticker": "AAPL"}'
 ```
@@ -388,7 +401,7 @@ curl -X POST http://localhost:5001/predict \
 - `PETR4.SA` (Petrobras - B3)
 - `BRK-B` (Berkshire Hathaway Class B)
 
-**Response 200 OK:**
+**Response 200 OK (sem histórico):**
 ```json
 {
   "success": true,
@@ -405,18 +418,66 @@ curl -X POST http://localhost:5001/predict \
 }
 ```
 
+**Response 200 OK (com histórico - `?include_history=true`):**
+```json
+{
+  "success": true,
+  "data": {
+    "ticker": "AAPL",
+    "predicted_price": 178.45,
+    "current_price": 175.20,
+    "change_percent": 1.85,
+    "change_direction": "up",
+    "prediction_date": "2025-12-31",
+    "confidence": "medium",
+    "timestamp": "2025-12-30T10:30:00.123456",
+    "historical_data": [
+      {
+        "date": "2025-11-28",
+        "open": 172.50,
+        "high": 174.20,
+        "low": 171.80,
+        "close": 173.90,
+        "volume": 52000000
+      },
+      {
+        "date": "2025-11-29",
+        "open": 173.95,
+        "high": 175.60,
+        "low": 173.50,
+        "close": 175.20,
+        "volume": 48500000
+      }
+      // ... 28 dias adicionais
+    ]
+  }
+}
+```
+
 **Campos de Response:**
+
+| Campo | Tipo | Opcional | Descrição |
+|-------|------|----------|-----------|
+| ticker | string | ❌ | Símbolo normalizado (uppercase) |
+| predicted_price | float | ❌ | Preço previsto para próximo dia (arredondado 2 casas) |
+| current_price | float | ❌ | Último preço de fechamento conhecido |
+| change_percent | float | ❌ | Variação % esperada (positivo = alta, negativo = baixa) |
+| change_direction | string | ❌ | `"up"`, `"down"` ou `"neutral"` |
+| prediction_date | string | ❌ | Data da previsão (formato YYYY-MM-DD) |
+| confidence | string | ❌ | `"high"` (<2%), `"medium"` (2-5%), `"low"` (>5%) |
+| timestamp | string | ❌ | ISO 8601 timestamp da predição |
+| historical_data | array | ✅ | Array com últimos 30 dias (OHLCV). Incluído apenas se `include_history=true` |
+
+**Campos de `historical_data` (quando incluído):**
 
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
-| ticker | string | Símbolo normalizado (uppercase) |
-| predicted_price | float | Preço previsto para próximo dia (arredondado 2 casas) |
-| current_price | float | Último preço de fechamento conhecido |
-| change_percent | float | Variação % esperada (positivo = alta, negativo = baixa) |
-| change_direction | string | `"up"`, `"down"` ou `"neutral"` |
-| prediction_date | string | Data da previsão (formato YYYY-MM-DD) |
-| confidence | string | `"high"` (<2%), `"medium"` (2-5%), `"low"` (>5%) |
-| timestamp | string | ISO 8601 timestamp da predição |
+| date | string | Data no formato YYYY-MM-DD |
+| open | float | Preço de abertura (2 casas decimais) |
+| high | float | Preço máximo do dia (2 casas decimais) |
+| low | float | Preço mínimo do dia (2 casas decimais) |
+| close | float | Preço de fechamento (2 casas decimais) |
+| volume | integer | Volume negociado |
 
 **Response 400 Bad Request (Content-Type inválido):**
 ```json
@@ -497,6 +558,12 @@ curl -X POST http://localhost:5001/predict \
 - 400ms: Yahoo Finance
 - 50ms: Inferência do modelo
 - 20ms: Processamento restante
+
+**Tamanho do Payload:**
+- Sem histórico: ~250 bytes
+- Com histórico (`include_history=true`): ~3.5 KB
+
+**💡 Dica:** Use `include_history=true` apenas quando necessário exibir gráfico histórico, para economizar banda.
 
 ---
 

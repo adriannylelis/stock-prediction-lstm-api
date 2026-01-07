@@ -16,13 +16,14 @@ logger = logging.getLogger(__name__)
 class DataService:
     """Busca dados históricos via Yahoo Finance."""
     
-    def __init__(self, lookback_days: int = 60):
+    def __init__(self, lookback_days: int = 60, min_days: int = 30):
         self.lookback_days = lookback_days
+        self.min_days = min_days
     
     def fetch_data(self, ticker: str) -> pd.DataFrame:
         try:
             end_date = datetime.now()
-            start_date = end_date - timedelta(days=self.lookback_days + 30)
+            start_date = end_date - timedelta(days=self.lookback_days + 60)  # +60 para compensar fins de semana/feriados
             
             logger.info(f"Buscando dados para {ticker} de {start_date.date()} a {end_date.date()}")
             
@@ -33,15 +34,18 @@ class DataService:
             if df.empty:
                 raise TickerNotFoundError(ticker)
             
-            # Verificar se tem dados suficientes
-            if len(df) < self.lookback_days:
+            # Verificar se tem dados MÍNIMOS suficientes (30 dias)
+            if len(df) < self.min_days:
                 raise InsufficientDataError(
                     ticker=ticker,
                     days_available=len(df),
-                    days_required=self.lookback_days
+                    days_required=self.min_days
                 )
             
-            df = df.tail(self.lookback_days)
+            # Se tiver mais que lookback_days, pegar apenas os últimos
+            if len(df) > self.lookback_days:
+                df = df.tail(self.lookback_days)
+            # Se tiver menos, retornar todos (será tratado no PredictService com padding)
             
             logger.info(f"Dados obtidos: {len(df)} registros, último preço: {df['Close'].iloc[-1]:.2f}")
             

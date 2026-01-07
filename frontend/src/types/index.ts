@@ -3,20 +3,37 @@ export interface PredictionResponse {
   data: PredictionData;
 }
 
+export interface HistoricalDataPoint {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
 export interface PredictionData {
   ticker: string;
   predicted_price: number;
   current_price: number;
   change_percent: number;
-  change_direction: 'up' | 'down' | 'neutral';
+  change_direction: 'alta' | 'baixa' | 'neutra';
   prediction_date: string;
-  confidence: 'high' | 'medium' | 'low';
+  confidence: 'alta' | 'média' | 'baixa';
   timestamp: string;
+  historical_data?: HistoricalDataPoint[];
 }
 
 export interface Stock {
   symbol: string;
   name: string;
+  market?: string;
+}
+
+export interface StocksResponse {
+  success: boolean;
+  data: Stock[];
+  count: number;
 }
 
 export interface ApiError {

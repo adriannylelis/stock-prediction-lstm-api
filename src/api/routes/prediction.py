@@ -25,6 +25,18 @@ def get_predict_service():
 
 @prediction_bp.route('/predict', methods=['POST'])
 def predict():
+    """
+    Endpoint para predição de preço de ação.
+    
+    Query Parameters:
+        include_history (bool): Se 'true', inclui últimos 30 dias de dados históricos
+        
+    Request Body:
+        ticker (str): Símbolo da ação (ex: AAPL, PETR4.SA)
+        
+    Returns:
+        JSON com predição e opcionalmente dados históricos
+    """
     try:
         if not request.is_json:
             return jsonify({
@@ -44,12 +56,15 @@ def predict():
         
         ticker = data['ticker']
         
+        # Verificar query parameter para incluir histórico
+        include_history = request.args.get('include_history', 'false').lower() == 'true'
+        
         is_valid, error_message = validate_ticker(ticker)
         if not is_valid:
             raise InvalidTickerError(ticker=ticker, suggestion=error_message)
         
         service = get_predict_service()
-        result = service.predict(ticker)
+        result = service.predict(ticker, include_history=include_history)
         
         return jsonify({
             "success": True,
