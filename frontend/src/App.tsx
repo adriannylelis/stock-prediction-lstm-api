@@ -52,7 +52,7 @@ function App() {
         {/* Selection Panel */}
         <Card className="mb-6 sm:mb-8 shadow-lg transition-all duration-300 hover:shadow-xl">
           <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">Selecione a Ação e Preveja</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">Selecione a Ação</CardTitle>
             <CardDescription className="text-xs sm:text-sm">
               Escolha um ticker e obtenha previsões de preço com IA
             </CardDescription>
