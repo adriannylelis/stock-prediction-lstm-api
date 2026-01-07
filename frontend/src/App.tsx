@@ -41,27 +41,27 @@ function App() {
           <div className="flex items-center justify-center gap-2 sm:gap-3 mb-4">
             <TrendingUp className="w-8 h-8 sm:w-10 sm:h-10 text-primary animate-pulse" />
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-              Stock Prediction Dashboard
+              Painel de Previsão de Ações
             </h1>
           </div>
           <p className="text-sm sm:text-base md:text-lg text-muted-foreground px-4">
-            AI-powered LSTM predictions for next-day stock prices
+            Previsões de preços de ações com IA usando LSTM
           </p>
         </div>
 
         {/* Selection Panel */}
         <Card className="mb-6 sm:mb-8 shadow-lg transition-all duration-300 hover:shadow-xl">
           <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">Select Stock & Predict</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">Selecione a Ação e Preveja</CardTitle>
             <CardDescription className="text-xs sm:text-sm">
-              Choose a stock ticker and get AI-powered price predictions
+              Escolha um ticker e obtenha previsões de preço com IA
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1">
                 <label className="text-xs sm:text-sm font-medium mb-2 block">
-                  Stock Ticker
+                  Ticker da Ação
                 </label>
                 <StockSelector
                   stocks={AVAILABLE_STOCKS}
@@ -80,10 +80,10 @@ function App() {
                   {loading ? (
                     <>
                       <span className="animate-spin mr-2">⏳</span>
-                      Predicting...
+                      Prevendo...
                     </>
                   ) : (
-                    'Get Prediction'
+                    'Obter Previsão'
                   )}
                 </Button>
               </div>
@@ -116,14 +116,14 @@ function App() {
             {/* Additional Info */}
             <Card className="mt-4 sm:mt-6 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 transition-all duration-300 hover:shadow-lg">
               <CardHeader>
-                <CardTitle className="text-base sm:text-lg">ℹ️ About This Prediction</CardTitle>
+                <CardTitle className="text-base sm:text-lg">ℹ️ Sobre Esta Previsão</CardTitle>
               </CardHeader>
               <CardContent className="text-xs sm:text-sm text-muted-foreground">
                 <ul className="space-y-2">
-                  <li>• Predictions are generated using a trained LSTM neural network model</li>
-                  <li>• Model uses 60 days of historical data with 14 technical indicators</li>
-                  <li>• Confidence levels: <strong>High</strong> (&lt;2% change), <strong>Medium</strong> (2-5%), <strong>Low</strong> (&gt;5%)</li>
-                  <li>• This is for educational purposes only - not financial advice</li>
+                  <li>• Previsões geradas usando um modelo de rede neural LSTM treinado</li>
+                  <li>• Modelo utiliza 60 dias de dados históricos com 14 indicadores técnicos</li>
+                  <li>• Níveis de confiança: <strong>Alta</strong> (&lt;2% mudança), <strong>Média</strong> (2-5%), <strong>Baixa</strong> (&gt;5%)</li>
+                  <li>• Apenas para fins educacionais - não constitui aconselhamento financeiro</li>
                 </ul>
               </CardContent>
             </Card>
@@ -135,9 +135,9 @@ function App() {
           <Card className="text-center py-12 sm:py-16 transition-all duration-300 hover:shadow-lg">
             <CardContent>
               <TrendingUp className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-muted-foreground animate-bounce" />
-              <h3 className="text-lg sm:text-xl font-semibold mb-2">Ready to Predict</h3>
+              <h3 className="text-lg sm:text-xl font-semibold mb-2">Pronto para Prever</h3>
               <p className="text-sm sm:text-base text-muted-foreground px-4">
-                Select a stock ticker above and click "Get Prediction" to start
+                Selecione um ticker acima e clique em "Obter Previsão" para começar
               </p>
             </CardContent>
           </Card>
@@ -145,8 +145,8 @@ function App() {
 
         {/* Footer */}
         <div className="mt-8 sm:mt-12 text-center text-xs sm:text-sm text-muted-foreground">
-          <p>Powered by LSTM Neural Networks • Built with React + TypeScript + shadcn/ui</p>
-          <p className="mt-1">© 2026 Stock Prediction API</p>
+          <p>Desenvolvido com Redes Neurais LSTM • React + TypeScript + shadcn/ui</p>
+          <p className="mt-1">© 2026 API de Previsão de Ações</p>
         </div>
       </div>
     </div>
