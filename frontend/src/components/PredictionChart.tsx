@@ -89,10 +89,10 @@ export function PredictionChart({
               domain={[minPrice - padding, maxPrice + padding]}
               className="text-xs"
               tick={{ fontSize: 12 }}
-              tickFormatter={(value) => `$${value.toFixed(2)}`}
+              tickFormatter={(value) => `R$${value.toFixed(2)}`}
             />
             <Tooltip 
-              formatter={(value: number | undefined) => value !== undefined ? [`$${value.toFixed(2)}`, ''] : ['', '']}
+              formatter={(value: number | undefined) => value !== undefined ? [`R$${value.toFixed(2)}`, ''] : ['', '']}
               labelStyle={{ color: '#000' }}
               contentStyle={{ 
                 backgroundColor: 'rgba(255, 255, 255, 0.95)',

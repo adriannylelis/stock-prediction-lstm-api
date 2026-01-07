@@ -37,12 +37,12 @@ export function PredictionCard({ prediction }: PredictionCardProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-xs sm:text-sm text-muted-foreground mb-1">Preço Atual</p>
-              <p className="text-2xl sm:text-3xl font-bold">${prediction.current_price.toFixed(2)}</p>
+              <p className="text-2xl sm:text-3xl font-bold">R${prediction.current_price.toFixed(2)}</p>
             </div>
             
             <div>
               <p className="text-xs sm:text-sm text-muted-foreground mb-1">Preço Previsto</p>
-              <p className="text-2xl sm:text-3xl font-bold">${prediction.predicted_price.toFixed(2)}</p>
+              <p className="text-2xl sm:text-3xl font-bold">R${prediction.predicted_price.toFixed(2)}</p>
             </div>
           </div>
           
