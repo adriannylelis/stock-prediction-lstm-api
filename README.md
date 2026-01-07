@@ -143,39 +143,131 @@ stock-prediction-lstm-api/
 
 ---
 
-## 🚀 Instalação
+## 🚀 Quick Start
 
-### **Pré-requisitos**
-- Python 3.13+
+### **🐳 Opção 1: Docker (Recomendado)**
+
+A forma mais rápida de iniciar o projeto completo (backend + frontend):
+
+```bash
+# 1. Clone o repositório
+git clone https://github.com/adriannylelis/stock-prediction-lstm-api.git
+cd stock-prediction-lstm-api
+
+# 2. Inicie os containers
+docker-compose up --build
+
+# 3. Acesse as aplicações
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:5001/health
+```
+
+**O que está rodando:**
+- ✅ **Frontend**: React dashboard em http://localhost:3000
+- ✅ **Backend**: Flask API em http://localhost:5001
+- ✅ **Healthchecks**: Automáticos para ambos containers
+- ✅ **Network**: Comunicação interna entre serviços
+
+**Comandos úteis:**
+```bash
+# Ver logs em tempo real
+docker-compose logs -f
+
+# Ver logs só do frontend
+docker-compose logs -f frontend
+
+# Ver logs só do backend
+docker-compose logs -f backend
+
+# Parar containers
+docker-compose down
+
+# Parar e remover volumes
+docker-compose down -v
+```
+
+---
+
+### **💻 Opção 2: Desenvolvimento Local**
+
+#### **Backend (API)**
+
+**Pré-requisitos:**
+- Python 3.11+
 - pip ou uv
 
-### **Setup Rápido (Recomendado)**
+**Setup:**
+```bash
+# 1. Clone o repositório
+git clone https://github.com/adriannylelis/stock-prediction-lstm-api.git
+cd stock-prediction-lstm-api
 
-Use os scripts automatizados para configurar o ambiente:
+# 2. Crie ambiente virtual
+python -m venv venv
 
-#### **Linux/Mac**
+# Windows
+venv\Scripts\activate
+
+# Linux/Mac
+source venv/bin/activate
+
+# 3. Instale dependências
+pip install -r requirements.txt
+
+# 4. Execute a API
+python -m src.api.main
+
+# API disponível em http://localhost:5001
+```
+
+**Scripts automatizados (alternativa):**
+
+Linux/Mac:
 ```bash
 chmod +x setup.sh
 ./setup.sh
 ```
 
-#### **Windows**
+Windows:
 ```powershell
 .\setup.ps1
 ```
 
-Os scripts irão:
-- ✅ Criar ambiente virtual (.venv)
-- ✅ Instalar todas as dependências
-- ✅ Criar diretórios necessários (data/, models/, artifacts/, logs/)
-- ✅ Verificar instalação do CLI
-- ✅ Testar imports principais
+#### **Frontend (React Dashboard)**
+
+**Pré-requisitos:**
+- Node.js 18+
+- npm ou yarn
+
+**Setup:**
+```bash
+# 1. Entre na pasta do frontend
+cd frontend
+
+# 2. Instale dependências
+npm install
+
+# 3. Configure variável de ambiente (opcional)
+# Crie arquivo .env com:
+VITE_API_URL=http://localhost:5001
+
+# 4. Inicie o servidor de desenvolvimento
+npm run dev
+
+# Frontend disponível em http://localhost:5173
+```
+
+**Build para produção:**
+```bash
+npm run build
+npm run preview  # Testa build localmente
+```
 
 ---
 
-### **Setup Manual (Alternativo)**
+## 📦 Instalação Completa (Manual)
 
-Se preferir configurar manualmente:
+Se preferir configurar tudo manualmente:
 
 #### **1. Clone o Repositório**
 ```bash
@@ -183,16 +275,16 @@ git clone https://github.com/adriannylelis/stock-prediction-lstm-api.git
 cd stock-prediction-lstm-api
 ```
 
-#### **2. Crie o Ambiente Virtual**
+#### **2. Crie o Ambiente Virtual (Backend)**
 ```bash
 # Com venv
-python -m venv .venv
+python -m venv venv
 
 # Ativar no Windows
-.venv\Scripts\activate
+venv\Scripts\activate
 
 # Ativar no Linux/Mac
-source .venv/bin/activate
+source venv/bin/activate
 
 # Ou com uv (recomendado)
 uv venv
@@ -214,13 +306,20 @@ pip install -e ".[dev]"
 pip install -e ".[api]"
 ```
 
-#### **4. Crie Diretórios Necessários**
+#### **4. Setup Frontend**
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+#### **5. Crie Diretórios Necessários**
 ```bash
 mkdir -p data/raw data/processed data/versioned
 mkdir -p models artifacts logs
 ```
 
-#### **5. Verifique a Instalação**
+#### **6. Verifique a Instalação**
 ```bash
 stock-predict --help
 ```
@@ -229,7 +328,96 @@ stock-predict --help
 
 ## 📖 Guia de Uso
 
-### **Quick Start: Treinar e Prever**
+### **🖥️ Dashboard Web (Interface Gráfica)**
+
+A forma mais fácil de usar o sistema:
+
+```bash
+# Com Docker
+docker-compose up
+
+# Acesse http://localhost:3000
+```
+
+**Recursos do Dashboard:**
+- 📊 **Seleção de ações**: 10 tickers disponíveis (7 US + 3 BR)
+- 📈 **Gráfico interativo**: Recharts com previsões de 7 dias
+- 💰 **Métricas**: Preço atual, previsão D+7, % variação, tendência
+- ⚡ **Real-time**: Loading states e atualização automática
+- 🎨 **Design moderno**: shadcn/ui + Tailwind CSS
+- 📱 **Responsivo**: Mobile, tablet e desktop
+
+**Ações disponíveis:**
+- 🇺🇸 US Stocks: AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA, META
+- 🇧🇷 BR Stocks: PETR4.SA, VALE3.SA, ITUB4.SA
+
+---
+
+### **🔌 API REST**
+
+Integre com suas aplicações via HTTP:
+
+#### **Endpoints**
+
+**1. Health Check**
+```bash
+curl http://localhost:5001/health
+
+# Response:
+{
+  "status": "healthy",
+  "timestamp": "2026-01-06T19:00:00Z"
+}
+```
+
+**2. Model Info**
+```bash
+curl http://localhost:5001/model/info
+
+# Response:
+{
+  "model_version": "1.0.0",
+  "architecture": "LSTM-1x16",
+  "input_size": 1,
+  "hidden_size": 16,
+  "num_layers": 1,
+  "dropout": 0.2
+}
+```
+
+**3. Stock Prediction**
+```bash
+curl -X POST http://localhost:5001/predict \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "AAPL"}'
+
+# Response:
+{
+  "ticker": "AAPL",
+  "current_price": 227.48,
+  "predictions": [228.15, 228.82, 229.49, 230.16, 230.83, 231.50, 232.17],
+  "dates": ["2026-01-07", "2026-01-08", "2026-01-09", "2026-01-10", "2026-01-11", "2026-01-12", "2026-01-13"],
+  "prediction_date": "2026-01-06",
+  "days_ahead": 7,
+  "trend": "bullish",
+  "confidence": "high",
+  "model_version": "1.0.0"
+}
+```
+
+**Códigos de erro:**
+- `400`: Ticker inválido ou ausente
+- `404`: Ticker não encontrado no Yahoo Finance
+- `500`: Erro interno do modelo
+- `503`: Serviço indisponível (dados insuficientes)
+
+---
+
+### **⌨️ CLI Commands**
+
+Para uso avançado e treinamento de modelos:
+
+#### **Quick Start: Treinar e Prever**
 
 ```bash
 # 1. Treinar modelo para PETR4.SA (Petrobras)
