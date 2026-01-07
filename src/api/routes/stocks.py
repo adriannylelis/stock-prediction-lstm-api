@@ -1,6 +1,3 @@
-"""
-Stocks endpoint - Lista de ações disponíveis para previsão
-"""
 from flask import Blueprint, jsonify
 import logging
 
@@ -8,9 +5,7 @@ logger = logging.getLogger(__name__)
 
 stocks_bp = Blueprint('stocks', __name__)
 
-# Lista curada de ações populares - B3 e mercados internacionais
 AVAILABLE_STOCKS = [
-    # === Ações Brasileiras (B3) ===
     {"symbol": "PETR4.SA", "name": "Petrobras PN", "market": "B3"},
     {"symbol": "VALE3.SA", "name": "Vale ON", "market": "B3"},
     {"symbol": "ITUB4.SA", "name": "Itaú Unibanco PN", "market": "B3"},
@@ -37,7 +32,6 @@ AVAILABLE_STOCKS = [
     {"symbol": "LREN3.SA", "name": "Lojas Renner ON", "market": "B3"},
     {"symbol": "COGN3.SA", "name": "Cogna Educação ON", "market": "B3"},
     
-    # === Ações Americanas (NYSE/NASDAQ) ===
     {"symbol": "AAPL", "name": "Apple Inc.", "market": "NASDAQ"},
     {"symbol": "MSFT", "name": "Microsoft Corporation", "market": "NASDAQ"},
     {"symbol": "GOOGL", "name": "Alphabet Inc. (Google)", "market": "NASDAQ"},
@@ -86,13 +80,6 @@ def get_stocks():
         }
     """
     try:
-        # TODO: Filtro por mercado pode ser implementado futuramente
-        # market_filter = request.args.get('market', '').upper()
-        # if market_filter:
-        #     filtered = [s for s in AVAILABLE_STOCKS if s['market'] == market_filter]
-        # else:
-        #     filtered = AVAILABLE_STOCKS
-        
         logger.info(f"Retornando {len(AVAILABLE_STOCKS)} ações disponíveis")
         
         return jsonify({

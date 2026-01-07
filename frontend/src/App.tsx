@@ -24,7 +24,6 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 transition-colors duration-300">
       <div className="container mx-auto px-4 py-6 sm:py-8 max-w-7xl">
-        {/* Header */}
         <div className="text-center mb-6 sm:mb-8">
           <div className="flex items-center justify-center gap-2 sm:gap-3 mb-4">
             <TrendingUp className="w-8 h-8 sm:w-10 sm:h-10 text-primary animate-pulse" />
@@ -37,7 +36,6 @@ function App() {
           </p>
         </div>
 
-        {/* Selection Panel */}
         <Card className="mb-6 sm:mb-8 shadow-lg transition-all duration-300 hover:shadow-xl">
           <CardHeader>
             <CardTitle className="text-lg sm:text-xl">Selecione a Ação</CardTitle>
@@ -85,17 +83,15 @@ function App() {
           </CardContent>
         </Card>
 
-        {/* Error State */}
         {error && !loading && (
           <div className="mb-6 sm:mb-8 animate-in fade-in-50 slide-in-from-top-2">
             <ErrorMessage message={error} />
           </div>
         )}
 
-        {/* Loading State */}
         {loading && <LoadingSpinner />}
 
-        {/* Success State - Prediction Results */}
+
         {prediction && !loading && !error && (
           <div className="animate-in fade-in-50 slide-in-from-bottom-4 duration-700">
             <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
@@ -108,7 +104,6 @@ function App() {
               />
             </div>
 
-            {/* Additional Info */}
             <Card className="mt-4 sm:mt-6 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 transition-all duration-300 hover:shadow-lg">
               <CardHeader>
                 <CardTitle className="text-base sm:text-lg">ℹ️ Sobre Esta Previsão</CardTitle>
@@ -125,7 +120,6 @@ function App() {
           </div>
         )}
 
-        {/* Empty State */}
         {!prediction && !loading && !error && (
           <Card className="text-center py-12 sm:py-16 transition-all duration-300 hover:shadow-lg">
             <CardContent>
@@ -138,7 +132,6 @@ function App() {
           </Card>
         )}
 
-        {/* Footer */}
         <div className="mt-8 sm:mt-12 text-center text-xs sm:text-sm text-muted-foreground">
           <p>Desenvolvido com Redes Neurais LSTM • React + TypeScript + shadcn/ui</p>
           <p className="mt-1">© 2026 API de Previsão de Ações</p>

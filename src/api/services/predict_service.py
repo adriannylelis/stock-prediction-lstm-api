@@ -34,10 +34,8 @@ class PredictService:
         current_length = len(data)
         
         if current_length >= target_length:
-            # Se já tem 60 ou mais, retorna os últimos 60
             return data[-target_length:]
         else:
-            # Se tem menos, preenche com zeros no início
             padding_length = target_length - current_length
             padding = np.zeros((padding_length, 1))
             return np.vstack([padding, data])
@@ -45,11 +43,8 @@ class PredictService:
     def _format_historical_data(self, df: pd.DataFrame, days: int = 30) -> List[Dict[str, Any]]:
 
         historical_df = df.tail(days).copy()
-        
-        # Resetar índice para ter acesso à coluna Date
         historical_df = historical_df.reset_index()
         
-        # Converter para lista de dicionários
         historical_data = []
         for _, row in historical_df.iterrows():
             historical_data.append({
@@ -80,7 +75,6 @@ class PredictService:
             scaler = self.model_service.get_scaler()
             scaled_data = scaler.transform(close_prices)
             
-            # Aplicar padding se necessário (menos de 60 dias)
             if days_available < 60:
                 logger.warning(f"{ticker}: apenas {days_available} dias disponíveis, aplicando zero-padding")
                 scaled_data = self._pad_sequence(scaled_data, target_length=60)

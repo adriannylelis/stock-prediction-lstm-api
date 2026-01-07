@@ -17,7 +17,6 @@ export function useStocks() {
       } catch (err) {
         console.error('Erro ao buscar ações:', err);
         setError(err instanceof Error ? err.message : 'Falha ao carregar ações');
-        // Fallback para lista vazia ou lista padrão
         setStocks([]);
       } finally {
         setLoading(false);

@@ -16,7 +16,6 @@ def create_app(config=None):
     if config:
         app.config.update(config)
     
-    # Configurar CORS
     CORS(app, resources={
         r"/*": {
             "origins": "*",
@@ -25,7 +24,6 @@ def create_app(config=None):
         }
     })
     
-    # Configurar logging
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -95,7 +93,6 @@ def register_error_handlers(app):
         app.logger.error(f"Serviço indisponível: {str(error)}")
         return jsonify(error.to_dict()), error.status_code
     
-    # Handlers para erros HTTP padrão
     @app.errorhandler(404)
     def not_found(error):
         return jsonify({

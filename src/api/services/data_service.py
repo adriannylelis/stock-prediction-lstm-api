@@ -30,11 +30,9 @@ class DataService:
             stock = yf.Ticker(ticker)
             df = stock.history(start=start_date, end=end_date)
             
-            # Validar dados
             if df.empty:
                 raise TickerNotFoundError(ticker)
             
-            # Verificar se tem dados MÍNIMOS suficientes (30 dias)
             if len(df) < self.min_days:
                 raise InsufficientDataError(
                     ticker=ticker,
@@ -42,10 +40,8 @@ class DataService:
                     days_required=self.min_days
                 )
             
-            # Se tiver mais que lookback_days, pegar apenas os últimos
             if len(df) > self.lookback_days:
                 df = df.tail(self.lookback_days)
-            # Se tiver menos, retornar todos (será tratado no PredictService com padding)
             
             logger.info(f"Dados obtidos: {len(df)} registros, último preço: {df['Close'].iloc[-1]:.2f}")
             

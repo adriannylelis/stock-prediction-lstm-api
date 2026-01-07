@@ -32,10 +32,8 @@ export function PredictionChart({
   predictionDate,
   historicalData 
 }: PredictionChartProps) {
-  // Construir dados do gráfico
   const data: ChartDataPoint[] = [];
   
-  // Adicionar dados históricos se disponíveis
   if (historicalData && historicalData.length > 0) {
     historicalData.forEach((point) => {
       data.push({
@@ -48,14 +46,12 @@ export function PredictionChart({
     });
   }
   
-  // Adicionar preço atual
   data.push({ 
     date: 'Hoje', 
     current: currentPrice,
     predicted: currentPrice,
   });
   
-  // Adicionar previsão
   data.push({ 
     date: new Date(predictionDate).toLocaleDateString('pt-BR', { 
       month: 'short', 
@@ -64,7 +60,6 @@ export function PredictionChart({
     predicted: predictedPrice,
   });
 
-  // Calcular range do eixo Y
   const allPrices = [
     currentPrice, 
     predictedPrice,

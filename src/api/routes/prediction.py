@@ -12,7 +12,6 @@ from src.api.utils.exceptions import (
 
 prediction_bp = Blueprint('prediction', __name__)
 
-# Instância do serviço de previsão (singleton)
 predict_service = None
 
 
@@ -56,7 +55,6 @@ def predict():
         
         ticker = data['ticker']
         
-        # Verificar query parameter para incluir histórico
         include_history = request.args.get('include_history', 'false').lower() == 'true'
         
         is_valid, error_message = validate_ticker(ticker)

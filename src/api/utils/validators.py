@@ -3,7 +3,6 @@ from typing import Tuple
 
 
 def validate_ticker(ticker: str) -> Tuple[bool, str]:
-    """Valida formato de ticker. Retorna (is_valid, error_message)."""
     if not isinstance(ticker, str):
         return False, "Ticker deve ser uma string"
     
