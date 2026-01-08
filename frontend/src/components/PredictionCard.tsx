@@ -8,17 +8,17 @@ interface PredictionCardProps {
 }
 
 export function PredictionCard({ prediction }: PredictionCardProps) {
-  const isPositive = prediction.change_direction === 'up';
-  const isNeutral = prediction.change_direction === 'neutral';
+  const isPositive = prediction.change_direction === 'alta';
+  const isNeutral = prediction.change_direction === 'neutra';
   
   const Icon = isNeutral ? Minus : (isPositive ? TrendingUp : TrendingDown);
   const colorClass = isNeutral 
     ? 'text-gray-500 bg-gray-50' 
     : (isPositive ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50');
   
-  const confidenceVariant = prediction.confidence === 'high' 
+  const confidenceVariant = prediction.confidence === 'alta' 
     ? 'default' 
-    : prediction.confidence === 'medium' 
+    : prediction.confidence === 'média' 
     ? 'secondary' 
     : 'destructive';
 
@@ -28,7 +28,7 @@ export function PredictionCard({ prediction }: PredictionCardProps) {
         <CardTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <span className="text-2xl sm:text-3xl">{prediction.ticker}</span>
           <Badge variant={confidenceVariant} className="text-xs sm:text-sm">
-            {prediction.confidence.toUpperCase()} Confidence
+            {prediction.confidence.toUpperCase()} Confiança
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -36,13 +36,13 @@ export function PredictionCard({ prediction }: PredictionCardProps) {
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-xs sm:text-sm text-muted-foreground mb-1">Current Price</p>
-              <p className="text-2xl sm:text-3xl font-bold">${prediction.current_price.toFixed(2)}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mb-1">Preço Atual</p>
+              <p className="text-2xl sm:text-3xl font-bold">R${prediction.current_price.toFixed(2)}</p>
             </div>
             
             <div>
-              <p className="text-xs sm:text-sm text-muted-foreground mb-1">Predicted Price</p>
-              <p className="text-2xl sm:text-3xl font-bold">${prediction.predicted_price.toFixed(2)}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mb-1">Preço Previsto</p>
+              <p className="text-2xl sm:text-3xl font-bold">R${prediction.predicted_price.toFixed(2)}</p>
             </div>
           </div>
           
@@ -60,9 +60,9 @@ export function PredictionCard({ prediction }: PredictionCardProps) {
           </div>
           
           <div className="pt-4 border-t">
-            <p className="text-xs sm:text-sm text-muted-foreground">Prediction Date</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Data de Previsão</p>
             <p className="text-base sm:text-lg font-semibold break-words">
-              {new Date(prediction.prediction_date).toLocaleDateString('en-US', {
+              {new Date(prediction.prediction_date).toLocaleDateString('pt-BR', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
@@ -72,7 +72,7 @@ export function PredictionCard({ prediction }: PredictionCardProps) {
           </div>
 
           <div className="text-xs text-muted-foreground text-center">
-            Generated at {new Date(prediction.timestamp).toLocaleString()}
+            Gerado em {new Date(prediction.timestamp).toLocaleString()}
           </div>
         </div>
       </CardContent>

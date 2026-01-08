@@ -7,25 +7,13 @@ import { ErrorMessage } from './components/ErrorMessage';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 import { usePrediction } from './hooks/usePrediction';
+import { useStocks } from './hooks/useStocks';
 import { TrendingUp } from 'lucide-react';
-import type { Stock } from './types';
-
-const AVAILABLE_STOCKS: Stock[] = [
-  { symbol: 'AAPL', name: 'Apple Inc.' },
-  { symbol: 'MSFT', name: 'Microsoft Corporation' },
-  { symbol: 'GOOGL', name: 'Alphabet Inc. (Google)' },
-  { symbol: 'AMZN', name: 'Amazon.com Inc.' },
-  { symbol: 'TSLA', name: 'Tesla Inc.' },
-  { symbol: 'NVDA', name: 'NVIDIA Corporation' },
-  { symbol: 'META', name: 'Meta Platforms Inc.' },
-  { symbol: 'PETR4.SA', name: 'Petrobras (B3)' },
-  { symbol: 'VALE3.SA', name: 'Vale S.A. (B3)' },
-  { symbol: 'ITUB4.SA', name: 'Itaú Unibanco (B3)' },
-];
 
 function App() {
   const [selectedStock, setSelectedStock] = useState('');
   const { prediction, loading, error, predict } = usePrediction();
+  const { stocks, loading: loadingStocks, error: stocksError } = useStocks();
 
   const handlePredict = () => {
     if (selectedStock) {
@@ -36,7 +24,6 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 transition-colors duration-300">
       <div className="container mx-auto px-4 py-6 sm:py-8 max-w-7xl">
-        {/* Header */}
         <div className="text-center mb-6 sm:mb-8">
           <div className="flex items-center justify-center gap-2 sm:gap-3 mb-4">
             <TrendingUp className="w-8 h-8 sm:w-10 sm:h-10 text-primary animate-pulse" />
@@ -49,7 +36,6 @@ function App() {
           </p>
         </div>
 
-        {/* Selection Panel */}
         <Card className="mb-6 sm:mb-8 shadow-lg transition-all duration-300 hover:shadow-xl">
           <CardHeader>
             <CardTitle className="text-lg sm:text-xl">Selecione a Ação</CardTitle>
@@ -63,17 +49,23 @@ function App() {
                 <label className="text-xs sm:text-sm font-medium mb-2 block">
                   Ticker da Ação
                 </label>
-                <StockSelector
-                  stocks={AVAILABLE_STOCKS}
-                  value={selectedStock}
-                  onChange={setSelectedStock}
-                  disabled={loading}
-                />
+                {loadingStocks ? (
+                  <div className="h-10 bg-muted animate-pulse rounded-md"></div>
+                ) : stocksError ? (
+                  <div className="text-xs text-red-500">Erro ao carregar ações</div>
+                ) : (
+                  <StockSelector
+                    stocks={stocks}
+                    value={selectedStock}
+                    onChange={setSelectedStock}
+                    disabled={loading}
+                  />
+                )}
               </div>
               <div className="flex items-end">
                 <Button
                   onClick={handlePredict}
-                  disabled={!selectedStock || loading}
+                  disabled={!selectedStock || loading || loadingStocks}
                   size="lg"
                   className="w-full md:w-auto min-w-[150px] transition-all duration-200 hover:scale-105"
                 >
@@ -91,17 +83,15 @@ function App() {
           </CardContent>
         </Card>
 
-        {/* Error State */}
         {error && !loading && (
           <div className="mb-6 sm:mb-8 animate-in fade-in-50 slide-in-from-top-2">
             <ErrorMessage message={error} />
           </div>
         )}
 
-        {/* Loading State */}
         {loading && <LoadingSpinner />}
 
-        {/* Success State - Prediction Results */}
+
         {prediction && !loading && !error && (
           <div className="animate-in fade-in-50 slide-in-from-bottom-4 duration-700">
             <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
@@ -110,10 +100,10 @@ function App() {
                 currentPrice={prediction.current_price}
                 predictedPrice={prediction.predicted_price}
                 predictionDate={prediction.prediction_date}
+                historicalData={prediction.historical_data}
               />
             </div>
 
-            {/* Additional Info */}
             <Card className="mt-4 sm:mt-6 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 transition-all duration-300 hover:shadow-lg">
               <CardHeader>
                 <CardTitle className="text-base sm:text-lg">ℹ️ Sobre Esta Previsão</CardTitle>
@@ -130,7 +120,6 @@ function App() {
           </div>
         )}
 
-        {/* Empty State */}
         {!prediction && !loading && !error && (
           <Card className="text-center py-12 sm:py-16 transition-all duration-300 hover:shadow-lg">
             <CardContent>
@@ -143,7 +132,6 @@ function App() {
           </Card>
         )}
 
-        {/* Footer */}
         <div className="mt-8 sm:mt-12 text-center text-xs sm:text-sm text-muted-foreground">
           <p>Desenvolvido com Redes Neurais LSTM • React + TypeScript + shadcn/ui</p>
           <p className="mt-1">© 2026 API de Previsão de Ações</p>
