@@ -123,9 +123,9 @@ class PredictService:
             prediction_date = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
 
             if abs(change_percent) < 2:
-                confidence = "high"
+                confidence = "alta"
             elif abs(change_percent) < 5:
-                confidence = "medium"
+                confidence = "média"
             else:
                 confidence = "low"
 
@@ -140,7 +140,7 @@ class PredictService:
                 "predicted_price": round(predicted_price, 2),
                 "current_price": round(current_price, 2),
                 "change_percent": round(change_percent, 2),
-                "change_direction": "up" if change_percent > 0 else "down" if change_percent < 0 else "neutral",
+                "change_direction": "alta" if change_percent > 0 else "baixa" if change_percent < 0 else "neutra",
                 "prediction_date": prediction_date,
                 "confidence": confidence,
                 "timestamp": datetime.utcnow().isoformat()
