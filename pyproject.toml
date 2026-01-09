@@ -94,6 +94,11 @@ markers = [
     "unit: unit tests (fast)",
     "slow: slow tests"
 ]
+filterwarnings = [
+    "ignore::ResourceWarning",
+    "ignore::FutureWarning:mlflow",
+    "ignore::DeprecationWarning"
+]
 
 [tool.coverage.run]
 source = ["src"]

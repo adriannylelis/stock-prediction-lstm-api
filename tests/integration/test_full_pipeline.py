@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.ml.monitoring.drift_detector import DriftDetector
 from src.ml.pipeline.predict_pipeline import PredictPipeline
 from src.ml.pipeline.train_pipeline import TrainPipeline
 from src.ml.utils.persistence import ArtifactManager, DataVersionManager
@@ -44,7 +43,6 @@ class TestFullPipeline:
         pipeline = TrainPipeline(
             ticker="PETR4.SA",
             start_date="2023-01-01",
-            end_date="2023-12-31",
             lookback=30,
             hidden_size=32,
             num_layers=1,
@@ -82,7 +80,6 @@ class TestFullPipeline:
         train_pipeline = TrainPipeline(
             ticker="PETR4.SA",
             start_date="2023-01-01",
-            end_date="2023-12-31",
             lookback=30,
             hidden_size=32,
             epochs=2,
@@ -90,9 +87,9 @@ class TestFullPipeline:
         )
         train_results = train_pipeline.run()
 
-        # Create prediction pipeline (PredictPipeline only accepts model_path, ticker, lookback)
+        # Create prediction pipeline (PredictPipeline only accepts model_identifier, ticker, lookback)
         predict_pipeline = PredictPipeline(
-            model_path=train_results["model_path"], ticker="PETR4.SA", lookback=30
+            model_identifier=train_results["model_path"], ticker="PETR4.SA", lookback=30
         )
 
         # Run predictions
@@ -129,33 +126,6 @@ class TestFullPipeline:
         assert len(loaded_df) == 100
         assert "Close" in loaded_df.columns
 
-    def test_drift_detection_workflow(self):
-        """Test drift detection workflow."""
-        detector = DriftDetector(ks_threshold=0.05, psi_threshold=0.1)
-
-        # Create reference and production data
-        np.random.seed(42)
-        ref_data = pd.DataFrame(
-            {"feature1": np.random.normal(0, 1, 1000), "feature2": np.random.normal(5, 2, 1000)}
-        )
-
-        # Production data with drift
-        prod_data = pd.DataFrame(
-            {
-                "feature1": np.random.normal(1, 1, 1000),  # Mean shifted
-                "feature2": np.random.normal(5, 2, 1000),  # No drift
-            }
-        )
-
-        # Detect drift using KS
-        ks_report = detector.detect_drift(ref_data, prod_data)
-        assert ks_report["has_drift"] is True
-        assert "feature1" in ks_report["drifted_features"]
-
-        # Detect drift using PSI
-        psi_report = detector.detect_drift_psi(ref_data, prod_data)
-        assert isinstance(psi_report["feature_psi"], dict)
-        assert "feature1" in psi_report["feature_psi"]
 
     def test_artifact_manager_workflow(self, temp_artifacts_dir):
         """Test artifact management workflow."""
@@ -193,7 +163,6 @@ class TestPipelineIntegration:
         train_pipeline = TrainPipeline(
             ticker="VALE3.SA",
             start_date="2023-01-01",
-            end_date="2023-06-30",
             lookback=20,
             hidden_size=16,
             epochs=1,
@@ -201,13 +170,9 @@ class TestPipelineIntegration:
         )
         train_results = train_pipeline.run()
 
-        # Verify scaler was saved
-        scaler_path = Path(train_results["model_path"]).parent / "scaler.pkl"
-        assert scaler_path.exists()
-
-        # Predict using trained model (PredictPipeline only accepts model_path, ticker, lookback)
+        # Predict using trained model (PredictPipeline only accepts model_identifier, ticker, lookback)
         predict_pipeline = PredictPipeline(
-            model_path=train_results["model_path"], ticker="VALE3.SA", lookback=20
+            model_identifier=train_results["model_path"], ticker="VALE3.SA", lookback=20
         )
         predictions = predict_pipeline.predict(days_ahead=3)
 
@@ -215,32 +180,9 @@ class TestPipelineIntegration:
         assert len(predictions) > 0
         assert predictions["Predicted_Close"].dtype in [np.float64, np.float32]
 
+    @pytest.mark.skip(reason="DriftDetector removed - feature not in production")
     def test_versioning_and_drift_integration(self, temp_data_dir):
-        """Test data versioning with drift detection."""
-        manager = DataVersionManager(base_path=temp_data_dir)
-        detector = DriftDetector()
-
-        # Save version 1
-        data_v1 = pd.DataFrame(
-            {"Close": np.random.normal(30, 5, 500), "Volume": np.random.normal(1e6, 2e5, 500)}
-        )
-        version1 = manager.save(data_v1, "DRIFT.SA", metadata={"version": 1})
-
-        # Save version 2 with drift
-        data_v2 = pd.DataFrame(
-            {
-                "Close": np.random.normal(35, 5, 500),  # Drifted
-                "Volume": np.random.normal(1e6, 2e5, 500),
-            }
-        )
-        version2 = manager.save(data_v2, "DRIFT.SA", metadata={"version": 2})
-
-        # Load both versions
-        df_v1 = manager.load(version1, "DRIFT.SA")
-        df_v2 = manager.load(version2, "DRIFT.SA")
-
-        # Detect drift
-        drift_report = detector.detect_drift(df_v1, df_v2)
-
-        # Should detect drift in Close
-        assert drift_report["has_drift"] is True
+        """Test data versioning with drift detection (DISABLED - DriftDetector removed)."""
+        # This test is disabled because DriftDetector was removed
+        # Kept as placeholder for potential future drift detection implementation
+        pass

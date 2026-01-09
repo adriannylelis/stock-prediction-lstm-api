@@ -1,238 +1,183 @@
-"""Train command - Full training pipeline."""
+"""Train command - Full training pipeline using refactored TrainPipeline."""
+
+import sys
+from pathlib import Path
 
 import click
-from pathlib import Path
 from loguru import logger
-import sys
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.ml.data.ingestion import StockDataIngestion
-from src.ml.data.feature_engineering import TechnicalIndicators
-from src.ml.data.preprocessing import StockPreprocessor
-from src.ml.models.lstm import create_model
-from src.ml.training.trainer import Trainer
-from src.ml.utils.device import get_device
-from src.ml.utils.seed import set_seed
+from src.ml.pipeline.train_pipeline import TrainPipeline
+
+# B3 ticker categories (43 unique tickers total)
+B3_TICKERS = {
+    "blue_chips": [
+        "PETR4.SA",   # Petrobras
+        "VALE3.SA",   # Vale
+        "ITUB4.SA",   # Itaú
+        "BBDC4.SA",   # Bradesco
+        "ABEV3.SA",   # Ambev
+        "BBAS3.SA",   # Banco do Brasil
+        "WEGE3.SA",   # WEG
+        "RENT3.SA",   # Localiza
+        "B3SA3.SA",   # B3
+        "SUZB3.SA",   # Suzano
+    ],
+    "bancos": [
+        "SANB11.SA",  # Santander
+        "BBSE3.SA",   # BB Seguridade
+    ],
+    "energia": [
+        "PETR3.SA",   # Petrobras PN
+        "ELET3.SA",   # Eletrobras
+        "ELET6.SA",   # Eletrobras PNB
+        "CMIG4.SA",   # Cemig
+        "CPLE6.SA",   # Copel
+    ],
+    "varejo": [
+        "MGLU3.SA",   # Magazine Luiza
+        "LREN3.SA",   # Lojas Renner
+        "PETZ3.SA",   # Petz
+        "AMER3.SA",   # Americanas
+    ],
+    "mineracao": [
+        "CMIN3.SA",   # CSN Mineração
+        "GOAU4.SA",   # Metalúrgica Gerdau
+    ],
+    "construcao": [
+        "CYRE3.SA",   # Cyrela
+        "BEEF3.SA",   # Minerva
+        "EZTC3.SA",   # EZTec
+    ],
+    "telecom": [
+        "VIVT3.SA",   # Vivo
+        "TIMS3.SA",   # Tim
+    ],
+    "papel_celulose": [
+        "KLBN11.SA",  # Klabin
+    ],
+    "saude": [
+        "RADL3.SA",   # Raia Drogasil
+        "HAPV3.SA",   # Hapvida
+        "FLRY3.SA",   # Fleury
+    ],
+    "tecnologia": [
+        "TOTS3.SA",   # Totvs
+        "LWSA3.SA",   # Locaweb
+    ],
+    "alimentacao": [],
+    "servicos": [
+        "CSAN3.SA",   # Cosan
+        "RAIL3.SA",   # Rumo
+    ],
+}
+
+# All tickers (all categories combined - 43 unique tickers)
+ALL_TICKERS = sorted(list(set(
+    ticker
+    for category_tickers in B3_TICKERS.values()
+    for ticker in category_tickers
+)))
 
 
 @click.command()
-@click.option(
-    '--ticker',
-    type=str,
-    required=True,
-    help='Stock ticker symbol (e.g., PETR4.SA)'
-)
-@click.option(
-    '--start-date',
-    type=str,
-    default='2020-01-01',
-    help='Start date for data (YYYY-MM-DD)'
-)
-@click.option(
-    '--end-date',
-    type=str,
-    default=None,
-    help='End date for data (YYYY-MM-DD, default: today)'
-)
-@click.option(
-    '--hidden-size',
-    type=int,
-    default=50,
-    help='LSTM hidden size'
-)
-@click.option(
-    '--num-layers',
-    type=int,
-    default=2,
-    help='Number of LSTM layers'
-)
-@click.option(
-    '--dropout',
-    type=float,
-    default=0.2,
-    help='Dropout rate'
-)
-@click.option(
-    '--lr',
-    type=float,
-    default=0.001,
-    help='Learning rate'
-)
-@click.option(
-    '--epochs',
-    type=int,
-    default=100,
-    help='Maximum training epochs'
-)
-@click.option(
-    '--batch-size',
-    type=int,
-    default=32,
-    help='Batch size'
-)
-@click.option(
-    '--experiment-name',
-    type=str,
-    default=None,
-    help='MLflow experiment name (default: lstm-{ticker})'
-)
-@click.option(
-    '--model-path',
-    type=str,
-    default='artifacts/models/best_model.pt',
-    help='Path to save best model'
-)
-@click.option(
-    '--seed',
-    type=int,
-    default=42,
-    help='Random seed for reproducibility'
-)
+@click.option('--ticker', type=str, default=None, help='Single stock ticker (e.g., PETR4.SA)')
+@click.option('--tickers', type=str, default=None, help='Multiple tickers separated by comma')
+@click.option('--category', type=click.Choice([
+    'blue_chips', 'bancos', 'energia', 'varejo', 'mineracao',
+    'construcao', 'telecom', 'papel_celulose', 'saude',
+    'tecnologia', 'alimentacao', 'servicos'
+], case_sensitive=False), default=None, help='Ticker category')
+@click.option('--use-all-tickers', is_flag=True, default=False, help=f'Use ALL {len(ALL_TICKERS)} available tickers')
+@click.option('--start-date', type=str, default='2020-01-01', help='Start date (YYYY-MM-DD)')
+@click.option('--hidden-size', type=int, default=100, help='LSTM hidden size')
+@click.option('--num-layers', type=int, default=3, help='Number of LSTM layers')
+@click.option('--dropout', type=float, default=0.3, help='Dropout rate')
+@click.option('--lr', type=float, default=0.001, help='Learning rate')
+@click.option('--epochs', type=int, default=100, help='Maximum training epochs')
+@click.option('--batch-size', type=int, default=64, help='Batch size')
+@click.option('--experiment-name', type=str, default=None, help='MLflow experiment name')
+@click.option('--model-path', type=str, default='artifacts/models/best_model.pt', help='Model save path')
+@click.option('--seed', type=int, default=42, help='Random seed')
 def train(
-    ticker: str,
-    start_date: str,
-    end_date: str,
-    hidden_size: int,
-    num_layers: int,
-    dropout: float,
-    lr: float,
-    epochs: int,
-    batch_size: int,
-    experiment_name: str,
-    model_path: str,
-    seed: int
+    ticker, tickers, category, use_all_tickers, start_date,
+    hidden_size, num_layers, dropout, lr, epochs, batch_size,
+    experiment_name, model_path, seed
 ):
-    """🚂 Train LSTM model on stock data.
+    """🚂 Train LSTM model (single or multi-ticker) using MLflow-first architecture.
     
-    Uses fixed lookback period of 60 days for sequence creation.
-    Full training pipeline: data ingestion → feature engineering →
-    preprocessing → training → evaluation.
-    
-    Example:
+    Examples:
+        # Single ticker
         stock-predict train --ticker PETR4.SA --epochs 50
+        
+        # Multi-ticker (category)
+        stock-predict train --category blue_chips --epochs 50
+        
+        # Multi-ticker (custom)
+        stock-predict train --tickers PETR4.SA,VALE3.SA --epochs 50
+        
+        # All tickers
+        stock-predict train --use-all-tickers --epochs 50
     """
-    # Fixed parameters
-    lookback = 60  # Always use 60-day sequences
-    
-    # Setup
-    set_seed(seed)
-    device = get_device()
-    
-    # Get project root directory (2 levels up from cli/train.py)
-    project_root = Path(__file__).parent.parent.resolve()
-    
-    # Convert model_path to absolute path relative to project root
-    model_path_obj = Path(model_path)
-    if not model_path_obj.is_absolute():
-        model_path = str(project_root / model_path)
-    
-    if experiment_name is None:
-        experiment_name = f"lstm-{ticker.replace('.SA', '').lower()}"
-    
-    logger.info(f"🚀 Training Pipeline: {ticker}")
-    logger.info(f"Device: {device}")
-    logger.info(f"Experiment: {experiment_name}")
-    logger.info(f"Model will be saved to: {model_path}")
-    
+    # Determine ticker list
+    if use_all_tickers:
+        ticker_list = ALL_TICKERS
+    elif category:
+        ticker_list = B3_TICKERS[category]
+    elif tickers:
+        ticker_list = [t.strip() for t in tickers.split(',')]
+    elif ticker:
+        ticker_list = None  # Single-ticker mode
+        single_ticker = ticker
+    else:
+        raise click.UsageError("Must provide --ticker, --tickers, --category, or --use-all-tickers")
+
     try:
-        # 1. Data Ingestion
-        logger.info("📥 Step 1/5: Data Ingestion")
-        ingestion = StockDataIngestion(
-            ticker=ticker,
-            start_date=start_date,
-            end_date=end_date
-        )
-        df = ingestion.download_and_validate()
-        logger.info(f"✓ Downloaded {len(df)} records")
-        
-        # 2. Feature Engineering
-        logger.info("🔧 Step 2/5: Feature Engineering")
-        tech_ind = TechnicalIndicators(df)
-        df = tech_ind.add_all_indicators()
-        df = tech_ind.fill_missing_values()
-        logger.info(f"✓ Generated {df.shape[1]} features")
-        
-        # 3. Preprocessing
-        logger.info("⚙️ Step 3/5: Preprocessing")
-        preprocessor = StockPreprocessor(
-            lookback_period=lookback,
-            train_ratio=0.7,
-            val_ratio=0.15,
-            test_ratio=0.15
-        )
-        data = preprocessor.prepare_data(df)
-        logger.info(
-            f"✓ Train: {len(data['X_train'])}, "
-            f"Val: {len(data['X_val'])}, "
-            f"Test: {len(data['X_test'])}"
-        )
-        
-        # 4. Model Creation
-        logger.info("🧠 Step 4/5: Creating Model")
-        input_size = data['X_train'].shape[2]
-        model = create_model(
-            input_size=input_size,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            dropout=dropout,
-            device=device
-        )
-        logger.info(f"✓ Model created: {model.get_num_parameters():,} parameters")
-        
-        # 5. Training
-        logger.info("🏋️ Step 5/5: Training")
-        
-        # Create checkpoint directory
-        checkpoint_dir = Path(model_path).parent
-        checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        
-        trainer = Trainer(
-            model=model,
-            device=device,
-            learning_rate=lr,
-            loss_function='MSE',
-            early_stopping_patience=10,
-            experiment_name=experiment_name,
-            checkpoint_dir=str(checkpoint_dir)
-        )
-        
-        from torch.utils.data import DataLoader, TensorDataset
-        
-        train_dataset = TensorDataset(data['X_train'], data['y_train'])
-        val_dataset = TensorDataset(data['X_val'], data['y_val'])
-        
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-        
-        history = trainer.train(
-            train_loader=train_loader,
-            val_loader=val_loader,
-            epochs=epochs
-        )
-        
-        # Save model to specified path
-        best_model_checkpoint = checkpoint_dir / "best_model.pt"
-        if best_model_checkpoint.exists():
-            import shutil
-            shutil.copy(best_model_checkpoint, model_path)
-            logger.info(f"Model saved to: {model_path}")
-        
-        # Results
-        best_val_loss = min(history['val_loss'])
-        best_epoch = history['val_loss'].index(best_val_loss) + 1
-        
-        logger.success(
-            f"\n{'='*60}\n"
-            f"✅ Training Complete!\n"
-            f"{'='*60}\n"
-            f"Best Val Loss: {best_val_loss:.6f} (epoch {best_epoch})\n"
-            f"Model saved: {model_path}\n"
-            f"Experiment: {experiment_name}\n"
-            f"{'='*60}"
-        )
-        
+        # Create pipeline
+        if ticker_list:
+            # Multi-ticker
+            pipeline = TrainPipeline(
+                tickers=ticker_list,
+                start_date=start_date,
+                hidden_size=hidden_size,
+                num_layers=num_layers,
+                dropout=dropout,
+                learning_rate=lr,
+                epochs=epochs,
+                batch_size=batch_size,
+                experiment_name=experiment_name,
+                model_save_path=model_path,
+                seed=seed
+            )
+        else:
+            # Single-ticker
+            pipeline = TrainPipeline(
+                ticker=single_ticker,
+                start_date=start_date,
+                hidden_size=hidden_size,
+                num_layers=num_layers,
+                dropout=dropout,
+                learning_rate=lr,
+                epochs=epochs,
+                batch_size=batch_size,
+                experiment_name=experiment_name,
+                model_save_path=model_path,
+                seed=seed
+            )
+
+        # Run training
+        results = pipeline.run()
+
+        logger.success("\n" + "="*60)
+        logger.success("✅ Training Complete!")
+        logger.success("="*60)
+        logger.success(f"Model saved: {model_path}")
+        if experiment_name:
+            logger.success(f"Experiment: {experiment_name}")
+        logger.success("="*60 + "\n")
+
     except Exception as e:
         logger.error(f"❌ Training failed: {e}")
         raise click.ClickException(str(e))

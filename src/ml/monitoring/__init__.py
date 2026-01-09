@@ -1,5 +1,3 @@
-"""Monitoring and drift detection modules."""
+"""Monitoring modules."""
 
-from .drift_detector import DriftDetector
-
-__all__ = ["DriftDetector"]
+__all__ = []

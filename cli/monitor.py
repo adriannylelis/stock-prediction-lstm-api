@@ -1,7 +1,8 @@
 """Monitor command - Launch MLflow UI."""
 
-import click
 import subprocess
+
+import click
 from loguru import logger
 
 
@@ -9,7 +10,7 @@ from loguru import logger
 @click.option(
     '--port',
     type=int,
-    default=5000,
+    default=5001,
     help='Port for MLflow UI'
 )
 @click.option(
@@ -21,13 +22,13 @@ from loguru import logger
 @click.option(
     '--backend-store-uri',
     type=str,
-    default='file:./mlruns',
+    default='file:data/mlflow/tracking',
     help='MLflow tracking URI'
 )
 def monitor(port: int, host: str, backend_store_uri: str):
     """📡 Launch MLflow UI for experiment monitoring.
     
-    Opens web interface at http://localhost:5000
+    Opens web interface at http://localhost:5001
     
     Example:
         stock-ml monitor
@@ -36,7 +37,7 @@ def monitor(port: int, host: str, backend_store_uri: str):
     logger.info(f"🚀 Launching MLflow UI at http://{host}:{port}")
     logger.info(f"Backend: {backend_store_uri}")
     logger.info("Press Ctrl+C to stop")
-    
+
     try:
         subprocess.run([
             'mlflow', 'ui',

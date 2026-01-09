@@ -1,0 +1,9 @@
+deployed_at: '2026-01-09T18:53:05.663358'
+deployed_by: api_auto_load
+model_uri: models:/stock-lstm-model/Production
+reason: Auto-loaded from MLflow Production stage
+rollback: false
+rollback_from: null
+stage: Production
+tracking_uri: file:C:\FIAP\tech-challenges\stock-prediction-lstm-api/data/mlflow/tracking
+version: Production

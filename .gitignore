@@ -212,20 +212,29 @@ __marimo__/
 .github/instructions*
 
 # Project-specific
-# MLflow
+# ✅ MLflow tracking and artifacts (now in data/)
+data/mlflow/
+!data/mlflow/.gitkeep
+
+# Legacy MLflow paths (ignore if created accidentally)
+experiments/
 mlruns/
 mlartifacts/
 
-# Models and artifacts
+# Old models/ directory (migrated to artifacts/models/)
 models/
-artifacts/
-artifacts_test/
 
-# Data
+# Data (generated, not versioned)
 data/raw/
 data/processed/
 data/versioned/
+data/predictions/
 data_test/
+
+# Artifacts (KEEP THIS - fallback models versioned in Git)
+# artifacts/ is intentionally NOT ignored
+# Only ignore test artifacts
+artifacts_test/
 
 # Logs
 logs/

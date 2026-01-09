@@ -143,7 +143,7 @@ class HyperparameterTuner:
             early_stopping_patience=10,
             early_stopping_min_delta=0.0001,
             experiment_name=self.experiment_name if self.experiment_name else None,
-            tracking_uri="file:./mlruns",
+            tracking_uri="file:data/mlflow/tracking",
         )
 
         # Train with reduced epochs for faster trials

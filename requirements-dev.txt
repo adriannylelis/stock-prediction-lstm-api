@@ -1,0 +1,10 @@
+
+# Code quality (Ruff = black + isort + flake8)
+ruff>=0.1.0
+
+# Interactive Python shell para desenvolvimento
+ipython>=8.15.0
+
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
