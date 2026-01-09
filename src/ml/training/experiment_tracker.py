@@ -36,7 +36,7 @@ class ExperimentTracker:
     def __init__(
         self,
         experiment_name: str,
-        tracking_uri: str = "file:./mlruns",
+        tracking_uri: str = "file:data/mlflow/tracking",
         artifact_location: Optional[str] = None,
     ) -> None:
         """Initialize experiment tracker.

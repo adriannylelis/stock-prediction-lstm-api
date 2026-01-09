@@ -217,7 +217,7 @@ class ArtifactManager:
         self,
         base_path: str = "artifacts",
         use_mlflow: bool = True,
-        mlflow_tracking_uri: str = "file:./mlruns",
+        mlflow_tracking_uri: str = "file:data/mlflow/tracking",
     ):
         """Initialize artifact manager."""
         self.base_path = Path(base_path)

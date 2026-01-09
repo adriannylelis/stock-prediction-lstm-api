@@ -1,10 +1,12 @@
 # Stock Prediction LSTM API 📈
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.2+](https://img.shields.io/badge/PyTorch-2.2+-ee4c2c.svg)](https://pytorch.org/)
 [![Flask 3.1+](https://img.shields.io/badge/Flask-3.1+-000000.svg)](https://flask.palletsprojects.com/)
-[![Tests](https://img.shields.io/badge/tests-92%20passing-brightgreen.svg)](tests/)
-[![Coverage](https://img.shields.io/badge/coverage-72.79%25-yellow.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-63%20total-blue.svg)](tests/)
+[![Unit Tests](https://img.shields.io/badge/unit-53%2F53%20✓-brightgreen.svg)](tests/unit/)
+[![Integration](https://img.shields.io/badge/integration-5%2F6%20✓-green.svg)](tests/integration/)
+[![E2E](https://img.shields.io/badge/e2e-5%2F7%20✓-yellow.svg)](tests/e2e/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
 Sistema completo de **ML Engineering** para previsão de preços de ações usando LSTM (Long Short-Term Memory), com foco em boas práticas de engenharia, monitoramento, versionamento e qualidade de código.
@@ -26,73 +28,140 @@ Sistema completo de **ML Engineering** para previsão de preços de ações usan
 
 ---
 
+## 🚀 Quick Start
+
+```bash
+# 1. Treinar modelo de produção (36 tickers B3)
+python -m cli train --use-all-tickers --epochs 25 --batch-size 64
+
+# 2. Visualizar no MLflow UI
+.\scripts\init_mlflow.ps1  # Windows
+# ou
+./scripts/init_mlflow.sh   # Linux/Mac
+# Acesse: http://127.0.0.1:5001
+
+# 3. Promover para Production
+python promote_to_production.py
+
+# 4. Testar predição
+python -m src.api.main  # Inicia API na porta 5000
+# Em outro terminal:
+curl -X POST http://localhost:5000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "PETR4.SA"}'
+```
+
+**📊 Para análise detalhada**, veja [RELATORIO_PROJETO.md](RELATORIO_PROJETO.md)
+
+---
+
 ## 🎯 Visão Geral
 
-Este projeto implementa uma solução end-to-end para previsão de preços de ações:
+Este projeto implementa um sistema completo de **previsão de preços de ações B3** com arquitetura **MLOps moderna**:
 
-- ✅ **Pipeline de Dados**: Ingestão automática (Yahoo Finance), feature engineering (14 indicadores técnicos)
-- ✅ **Modelo LSTM**: PyTorch multi-camadas com dropout, early stopping
-- ✅ **Treinamento**: MLflow tracking, Optuna tuning, métricas completas (MAE, RMSE, MAPE, R², Directional Accuracy)
-- ✅ **Monitoramento**: Drift detection (KS-test, PSI), data versioning, artifact management
-- ✅ **CLI**: 5 comandos (train, predict, tune, drift, pipeline)
-- ✅ **API REST**: Flask API com 3 endpoints (health, model/info, predict), tratamento de erros HTTP robusto
-- ✅ **Qualidade**: 92 testes (100% passando), 72.79% coverage, Ruff linter
+- ✅ **MLflow-First**: Modelos, scalers, configs e métricas no MLflow (source of truth)
+- ✅ **Multi-Ticker**: Suporte a **36 tickers B3 válidos** com ticker embeddings de 8 dimensões
+- ✅ **Pipeline de Dados**: Ingestão automática (Yahoo Finance), **19 features técnicas** (OHLCV + 14 indicadores)
+- ✅ **Modelo LSTM**: PyTorch com **ticker embeddings**, 3 camadas, dropout 0.3, early stopping
+- ✅ **Treinamento**: MLflow tracking, model registry (Staging/Production), salvamento de artifacts
+- ✅ **CLI Simplificado**: Comando `train` com suporte a multi-ticker (`--use-all-tickers`)
+- ✅ **API REST**: Flask com 3 endpoints (health, model/info, predict), carregamento MLflow automático
+- ✅ **Qualidade**: **63 testes** (58 passing - 92.06%), shapes validados, correções críticas aplicadas
+
+**📊 Relatório Técnico Completo**: Veja [RELATORIO_PROJETO.md](RELATORIO_PROJETO.md) para análise detalhada de:
+- Arquitetura e shapes (19 features + 8 embedding = 27 input total)
+- Como funciona o ticker embedding
+- Tickers suportados (36 válidos, 7 removidos por falta de dados)
+- Correções críticas (Y normalization, batch consistency, deduplication)
+- Dimensionalidade da rede (~342k parâmetros)
 
 ---
 
 ## 🏗️ Arquitetura
 
+### **MLflow-First Architecture** 🎯
+
+O projeto segue uma arquitetura **MLflow-first**, onde **MLflow é a fonte da verdade** para:
+- ✅ Modelos (versionados e registrados)
+- ✅ Scalers (artifacts)
+- ✅ Configurações (params)
+- ✅ Métricas (tracking)
+- ✅ Experimentos (runs)
+
 ```
 stock-prediction-lstm-api/
-├── src/ml/                      # Core ML components
-│   ├── data/                    # Data pipeline
-│   │   ├── ingestion.py         # Yahoo Finance integration
-│   │   ├── feature_engineering.py  # Technical indicators (SMA, RSI, MACD, etc.)
-│   │   └── preprocessing.py     # Normalization & sequences
-│   ├── models/
-│   │   └── lstm.py              # PyTorch LSTM model
-│   ├── training/
-│   │   ├── trainer.py           # Training loop & checkpoints
-│   │   ├── early_stopping.py    # Callback
-│   │   ├── metrics.py           # Evaluation metrics
-│   │   ├── hyperparameter_tuner.py  # Optuna
-│   │   └── experiment_tracker.py    # MLflow
-│   ├── pipeline/
-│   │   ├── train_pipeline.py    # End-to-end training
-│   │   └── predict_pipeline.py  # End-to-end prediction
-│   ├── monitoring/
-│   │   └── drift_detector.py    # Drift detection (KS-test, PSI)
-│   └── utils/
-│       ├── persistence.py       # Data versioning & artifacts
-│       ├── device.py            # CPU/GPU management
-│       ├── logging.py           # Structured logging
-│       └── seed.py              # Reproducibility
+├── src/                         # Código fonte principal
+│   ├── ml/                      # Core ML components
+│   │   ├── data/                # Data pipeline
+│   │   │   ├── ingestion.py         # Yahoo Finance integration
+│   │   │   ├── feature_engineering.py  # 19 technical indicators
+│   │   │   └── preprocessing.py     # Normalization & sequences (PyTorch)
+│   │   ├── models/
+│   │   │   └── lstm.py              # PyTorch LSTM with Ticker Embeddings
+│   │   ├── training/
+│   │   │   ├── trainer.py           # Training loop + MLflow tracking
+│   │   │   ├── early_stopping.py    # Callback with min_delta
+│   │   │   ├── metrics.py           # MAE, RMSE, MAPE, R², DA
+│   │   │   ├── hyperparameter_tuner.py  # Optuna integration
+│   │   │   └── experiment_tracker.py    # MLflow wrapper
+│   │   ├── pipeline/
+│   │   │   ├── train_pipeline.py    # Single + Multi-ticker training
+│   │   │   └── predict_pipeline.py  # MLflow-based predictions
+│   │   └── utils/
+│   │       ├── persistence.py       # Data versioning (DataVersionManager)
+│   │       ├── device.py            # CPU/CUDA/MPS detection
+│   │       ├── logging.py           # Loguru structured logging
+│   │       └── seed.py              # Reproducibility (torch + numpy)
+│   ├── api/                     # REST API (Flask)
+│   │   ├── main.py                  # Application factory
+│   │   ├── routes/                  # API endpoints
+│   │   │   ├── health.py            # GET /health
+│   │   │   ├── model_info.py        # GET /model/info
+│   │   │   └── prediction.py        # POST /predict
+│   │   └── services/                # Business logic
+│   │       ├── model_service.py     # MLflow model loader (singleton)
+│   │       ├── data_service.py      # yfinance integration
+│   │       └── predict_service.py   # Prediction orchestration
+│   └── mlops/                   # MLOps automation
+│       ├── pipelines/               # Automation pipelines
+│       │   ├── training_pipeline.py     # Auto-training (43 tickers)
+│       │   └── promotion_pipeline.py    # Staging → Production
+│       ├── monitoring/
+│       │   └── model_comparator.py      # Metric-based comparison
+│       └── deployment/
+│           └── model_deployer.py        # Production deployment
 ├── cli/
-│   └── main.py                  # CLI interface (5 commands)
-├── src/api/                     # REST API (Flask)
-│   ├── main.py                  # Application factory
-│   ├── routes/                  # API endpoints
-│   │   ├── health.py            # GET /health
-│   │   ├── model_info.py        # GET /model/info
-│   │   └── prediction.py        # POST /predict
-│   ├── services/                # Business logic
-│   │   ├── model_service.py     # Model loading (singleton)
-│   │   ├── data_service.py      # Data fetching (yfinance)
-│   │   └── predict_service.py   # Prediction pipeline
-│   ├── models/
-│   │   └── lstm_model.py        # LSTM model class
-│   └── utils/
-│       └── validators.py        # Input validation
-├── tests/                       # 83 tests (100% passing)
-│   ├── integration/             # 8 integration tests
-│   ├── unit/                    # 75+ unit tests
-│   └── test_*.py
+│   ├── main.py                  # CLI entry point
+│   └── train.py                 # Train command (130 lines)
+├── tests/                       # 📊 63 testes automatizados
+│   ├── unit/                    # 53 testes (100% passando)
+│   │   ├── test_metrics.py          # 7 testes
+│   │   ├── test_model.py            # 5 testes
+│   │   ├── test_model_deployer.py   # 10 testes
+│   │   ├── test_model_service.py    # 11 testes
+│   │   ├── test_persistence.py      # 15 testes
+│   │   └── test_preprocessing.py    # 7 testes
+│   ├── integration/             # 6 testes (5 passando, 1 skipped)
+│   │   ├── test_full_pipeline.py    # 3 testes
+│   │   └── test_pipelines.py        # 3 testes
+│   └── e2e/                     # 7 testes (5 passando, 1 failed, 1 skipped)
+│       └── test_mlops_complete.py   # Complete MLOps workflow
+├── configs/                     # Configurações
+│   └── production_model.yaml        # Production model config
+├── data/                        # MLflow-first data structure
+│   ├── mlflow/
+│   │   └── tracking/                # 📦 MLflow tracking store
+│   └── versioned/                   # Data versioning (tests only)
+├── artifacts/                   # Local artifacts (fallback)
+│   └── models/                      # Checkpoints locais (keep 3)
 ├── notebooks/
 │   └── eda.ipynb                # Exploratory analysis
-├── artifacts/                   # Models, scalers, configs
-├── data/                        # Raw & processed data
-├── models/                      # Trained models
-└── docs/                        # Documentation
+├── docs/                        # Documentação
+│   ├── TESTING_PLAN.md              # Plano de testes
+│   └── QUICK_START.md               # Guia rápido
+├── requirements.txt             # PyTorch, MLflow, Flask, yfinance
+├── requirements-dev.txt         # pytest, ruff, ipython
+└── pyproject.toml               # Project configuration
 ```
 
 ---
@@ -217,51 +286,22 @@ pip install -r requirements.txt
 # 4. Execute a API
 python -m src.api.main
 
-# API disponível em http://localhost:5001
-```
+Use o script automatizado para configurar o ambiente:
 
-**Scripts automatizados (alternativa):**
-
-Linux/Mac:
+#### **Linux/Mac/Git Bash**
 ```bash
-chmod +x setup.sh
-./setup.sh
+chmod +x scripts/setup.sh
+./scripts/setup.sh
 ```
 
-Windows:
-```powershell
-.\setup.ps1
-```
-
-#### **Frontend (React Dashboard)**
-
-**Pré-requisitos:**
-- Node.js 18+
-- npm ou yarn
-
-**Setup:**
-```bash
-# 1. Entre na pasta do frontend
-cd frontend
-
-# 2. Instale dependências
-npm install
-
-# 3. Configure variável de ambiente (opcional)
-# Crie arquivo .env com:
-VITE_API_URL=http://localhost:5001
-
-# 4. Inicie o servidor de desenvolvimento
-npm run dev
-
-# Frontend disponível em http://localhost:5173
-```
-
-**Build para produção:**
-```bash
-npm run build
-npm run preview  # Testa build localmente
-```
+O script irá:
+- ✅ Detectar Python 3.13
+- ✅ Criar ambiente virtual (.venv)
+- ✅ Instalar PyTorch (escolha CPU ou GPU CUDA 12.4)
+- ✅ Instalar dependências (requirements.txt + requirements-dev.txt)
+- ✅ Instalar projeto em modo editable (pip install -e .)
+- ✅ Criar diretórios necessários (data/, models/, artifacts/, logs/)
+- ✅ Verificar instalação (torch, mlflow, flask)
 
 ---
 
@@ -293,17 +333,21 @@ uv sync
 
 #### **3. Instale as Dependências**
 ```bash
-# Com pip
+# PyTorch (escolha CPU ou GPU)
+# CPU:
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# GPU (CUDA 12.4):
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+
+# Dependências principais
+pip install -r requirements.txt
+
+# Ferramentas de desenvolvimento (pytest, ruff, ipython)
+pip install -r requirements-dev.txt
+
+# Instalar projeto em modo editable
 pip install -e .
-
-# Ou com uv
-uv pip install -e .
-
-# Dependências de desenvolvimento (opcional)
-pip install -e ".[dev]"
-
-# API REST (opcional)
-pip install -e ".[api]"
 ```
 
 #### **4. Setup Frontend**
@@ -326,7 +370,65 @@ stock-predict --help
 
 ---
 
-## 📖 Guia de Uso
+## � MLflow Tracking & Model Registry
+
+O projeto usa **MLflow** como fonte da verdade para modelos, métricas e experimentos.
+
+### **Iniciar MLflow UI**
+
+```powershell
+# Windows PowerShell (recomendado)
+.\scripts\init_mlflow.ps1
+
+# Linux/Mac
+chmod +x scripts/init_mlflow.sh
+./scripts/init_mlflow.sh
+
+# Python (alternativa)
+python -m mlflow_config
+
+# Comando direto (funciona em qualquer plataforma)
+$env:MLFLOW_TRACKING_URI="file:data/mlflow/tracking"; mlflow ui --port 5001 --backend-store-uri "file:data/mlflow/tracking"
+```
+
+Acesse: **http://127.0.0.1:5001**
+
+### **Estrutura de Dados MLflow**
+
+```
+data/
+├── mlflow/
+│   └── tracking/           # 📦 MLflow tracking store (SQLITE)
+│       ├── 0/              # Experimento Default
+│       ├── 941569.../      # Experimento lstm-multi-ticker
+│       │   ├── meta.yaml
+│       │   ├── 9116f4c9.../   # Run 1
+│       │   │   ├── artifacts/
+│       │   │   │   ├── model/
+│       │   │   │   ├── scaler.pkl
+│       │   │   │   └── config.yaml
+│       │   │   ├── metrics/
+│       │   │   ├── params/
+│       │   │   └── tags/
+│       │   └── f7133de2.../   # Run 2
+│       └── models/            # Model Registry
+│           └── stock-lstm-model/
+│               ├── version-1/
+│               └── version-2/
+```
+
+### **Tracking URI**
+
+O projeto está configurado para usar:
+```
+MLFLOW_TRACKING_URI = file:data/mlflow/tracking
+```
+
+Todos os componentes (CLI, API, pipelines) usam automaticamente esse URI.
+
+---
+
+## �📖 Guia de Uso
 
 ### **🖥️ Dashboard Web (Interface Gráfica)**
 
@@ -623,10 +725,15 @@ Exemplo:
 ### **Iniciar o Servidor**
 
 ```bash
-# Desenvolvimento (com hot reload)
-PYTHONPATH=$PWD python src/api/main.py
+# Usando script automatizado (recomendado)
+./scripts/init_backend.sh
 
-# Servidor roda em http://localhost:5001
+# Ou manualmente
+export FLASK_APP=src.api.main:create_app
+export FLASK_ENV=development
+flask run --host=0.0.0.0 --port=5000 --reload
+
+# Servidor roda em http://localhost:5000
 ```
 
 ---
