@@ -32,13 +32,16 @@ RUN pip install "numpy<2.0"
 # Instalar outras dependências
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar código da aplicação
+# Copiar código da aplicação, configs e CLI
 COPY src/ ./src/
+COPY cli/ ./cli/
+COPY configs/ ./configs/
 COPY artifacts/ ./artifacts/
 
-# Criar usuário não-root para segurança
+# Criar usuário não-root para segurança e garantir permissões de escrita
 RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
+    chown -R appuser:appuser /app && \
+    chmod -R 755 /app/artifacts /app/configs
 
 # Mudar para usuário não-root
 USER appuser

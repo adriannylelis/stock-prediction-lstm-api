@@ -2,6 +2,13 @@ import { useState } from 'react';
 import { stockApi } from '@/services/api';
 import type { PredictionData } from '@/types';
 
+const mapConfidenceToPt = (value: string): 'alta' | 'média' | 'baixa' => {
+  const v = value.toLowerCase();
+  if (v === 'high' || v === 'alta') return 'alta';
+  if (v === 'medium' || v === 'média' || v === 'media') return 'média';
+  return 'baixa';
+};
+
 export function usePrediction() {
   const [prediction, setPrediction] = useState<PredictionData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -19,7 +26,10 @@ export function usePrediction() {
 
     try {
       const data = await stockApi.predictStock(ticker, includeHistory);
-      setPrediction(data);
+      setPrediction({
+        ...data,
+        confidence: mapConfidenceToPt(data.confidence),
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch prediction');
       setPrediction(null);

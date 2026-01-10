@@ -132,9 +132,9 @@ def register_error_handlers(app):
 if __name__ == '__main__':
     import os
 
-    # Use PORT env var, default to 5000 (standard for Flask)
-    # Note: MLflow UI uses 5001 to avoid conflicts
-    port = int(os.environ.get('FLASK_PORT', os.environ.get('PORT', 5000)))
+    # Use PORT env var, default to 5001
+    # Note: Can be overridden via FLASK_PORT or PORT env vars
+    port = int(os.environ.get('FLASK_PORT', os.environ.get('PORT', 5001)))
 
     app = create_app()
     app.run(

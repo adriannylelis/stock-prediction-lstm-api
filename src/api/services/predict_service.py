@@ -48,10 +48,11 @@ class PredictService:
                 df = df.drop(columns=extra_cols)
                 logger.debug(f"Removed extra columns: {extra_cols}")
 
-            # Add technical indicators (19 features total: 5 OHLCV + 14 indicators)
+            # Add technical indicators (18 features total: 5 OHLCV + 13 indicadores)
+            # Using SMA_20 and SMA_50 (no SMA_200 to match training with 60-day window)
             from src.ml.data.feature_engineering import TechnicalIndicators
             ti = TechnicalIndicators(df)
-            df_features = ti.add_all_indicators()
+            df_features = ti.add_all_indicators(sma_windows=[20, 50])
             df_features = ti.fill_missing_values()
 
             # Handle MultiIndex again if created by indicators
@@ -59,9 +60,8 @@ class PredictService:
                 df_features.columns = [col[0] if col[1] == '' else col[0] for col in df_features.columns]
 
             current_price = float(df_features['Close'].iloc[-1])
-
-            # Get all 19 features (OHLCV + technical indicators)
-            all_features = df_features.values  # Shape: (samples, 19)
+            # Get all 18 features (OHLCV + technical indicators)
+            all_features = df_features.values  # Shape: (samples, 18)
 
             # Check for NaN in features
             print(f"🔍 Features shape: {all_features.shape}")
@@ -91,17 +91,23 @@ class PredictService:
                     available=len(scaled_data)
                 )
 
-            X = torch.FloatTensor(scaled_data[-lookback:]).unsqueeze(0).to(device)  # Shape: (1, 60, 19)
+            X = torch.FloatTensor(scaled_data[-lookback:]).unsqueeze(0).to(device)  # Shape: (1, 60, 18)
 
             # Get correct ticker_id (supports both single and multi-ticker models)
             ticker_id = self.model_service.get_ticker_id(ticker)
             ticker_ids = torch.tensor([ticker_id], dtype=torch.long).to(device)
 
+            is_embedding_model = hasattr(model, "ticker_embedding")
+            print(f"🔍 DEBUG Ticker: {ticker}, Ticker ID: {ticker_id}")
+            print(f"🔍 DEBUG Is embedding model: {is_embedding_model}")
             if self.model_service.is_multi_ticker():
                 logger.info(f"Using multi-ticker model: {ticker} → ID {ticker_id}")
 
             with torch.no_grad():
-                prediction_scaled = model(X, ticker_ids)
+                if is_embedding_model:
+                    prediction_scaled = model(X, ticker_ids)
+                else:
+                    prediction_scaled = model(X)
 
             # Debug prediction
             print(f"🔍 DEBUG Prediction shape: {prediction_scaled.shape}")
@@ -123,9 +129,9 @@ class PredictService:
             prediction_date = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
 
             if abs(change_percent) < 2:
-                confidence = "alta"
+                confidence = "high"
             elif abs(change_percent) < 5:
-                confidence = "média"
+                confidence = "medium"
             else:
                 confidence = "low"
 

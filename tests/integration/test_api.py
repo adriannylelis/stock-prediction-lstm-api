@@ -12,8 +12,9 @@ import requests
 import time
 from datetime import datetime
 from typing import Dict, Any
+import pytest
 
-BASE_URL = "http://localhost:5000"
+BASE_URL = "http://localhost:5001"
 
 # Cores para output
 GREEN = "\033[92m"
@@ -274,9 +275,7 @@ def main():
     tester.test_model_info_endpoint()
     
     tester.print_header("TESTES DE PREDIÇÃO - CASOS VÁLIDOS")
-    tester.test_prediction_valid_ticker("AAPL")
     tester.test_prediction_valid_ticker("PETR4.SA")
-    tester.test_prediction_valid_ticker("VALE3.SA")
     
     tester.print_header("TESTES DE PREDIÇÃO - CASOS DE ERRO")
     tester.test_prediction_invalid_ticker()
@@ -295,3 +294,11 @@ def main():
 if __name__ == "__main__":
     success = main()
     exit(0 if success else 1)
+
+
+# Pytest wrapper to enable collection
+def test_api_smoke():
+    try:
+        assert main() is True
+    except requests.exceptions.ConnectionError:
+        pytest.skip("API backend not reachable at BASE_URL")

@@ -573,7 +573,6 @@ class Trainer:
             "num_tickers": self.model.num_tickers,
             "num_features": self.model.num_features,
             "embedding_dim": self.model.embedding_dim,
-            "input_size": self.model.input_size,  # Backward compatibility
             "hidden_size": self.model.hidden_size,
             "num_layers": self.model.num_layers,
             "dropout": self.model.dropout_prob,

@@ -1,7 +1,7 @@
 import json
 import warnings
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import joblib
 import mlflow
@@ -10,6 +10,7 @@ import yaml
 from loguru import logger
 
 from src.ml.models.lstm import StockLSTM
+from src.api.utils.exceptions import InvalidTickerError
 
 # Suppress MLflow filesystem deprecation warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="mlflow")
@@ -46,6 +47,7 @@ class ModelService:
         self.model_uri = None
         self.ticker_to_id = {}  # Mapping ticker → ID para multi-ticker
         self.num_tickers = 1  # Default: single-ticker
+        self.allowed_tickers: List[str] = []
 
         self._load_artifacts()
         self._initialized = True
@@ -128,9 +130,8 @@ class ModelService:
                             self.y_scaler = joblib.load(y_scaler_path)
                             logger.info(f"✅ y target scaler loaded from MLflow: {y_scaler_path}")
                         except Exception:
-                            # Use first column of X scaler for backward compatibility
-                            self.y_scaler = self.scaler
-                            logger.info("ℹ️ Using X scaler for y (backward compatibility)")
+                            # Don't assign - let get_y_scaler() create wrapper
+                            logger.info("ℹ️ y_scaler não encontrado; get_y_scaler() criará wrapper")
 
                     except Exception as e:
                         logger.warning(f"⚠️ Scaler artifact not found: {e}")
@@ -162,6 +163,7 @@ class ModelService:
                         with open(preprocessing_config_path) as f:
                             prep_config = json.load(f)
 
+                        self.config = prep_config
                         # Check if it's a multi-ticker model
                         if 'ticker_to_id' in prep_config:
                             self.ticker_to_id = prep_config['ticker_to_id']
@@ -177,6 +179,7 @@ class ModelService:
                             # Single-ticker model
                             self.num_tickers = 1
                             logger.info("ℹ️ Single-ticker model detected")
+                        self._sync_allowed_tickers(prep_config)
                 except Exception as e:
                     logger.debug(f"No ticker mapping found in MLflow: {e}")
                     self.num_tickers = 1
@@ -220,6 +223,9 @@ class ModelService:
                 "has_scaler": scaler_loaded
             }
 
+            # Mesmo sem prep_config, alinhar allowed_tickers (irá falhar se não houver mapping)
+            self._sync_allowed_tickers(self.config)
+
             self.model_uri = model_uri
             return True
 
@@ -228,36 +234,116 @@ class ModelService:
             return False
 
     def _load_from_local_artifacts(self) -> bool:
-        """Load model from local artifacts (fallback).
+        """Load model from local artifacts (fallback, novo layout).
         
-        Returns:
-            True if successful
+        Espera encontrar:
+        - Modelo: artifacts/models/best_model.pt (checkpoint com metadados)
+        - Scalers: artifacts/models/scalers/scaler.pkl e opcional y_scaler.pkl
+        - preprocessing_config.json opcional (schema de features, ticker_to_id)
         """
         try:
-            logger.info("Loading model from local artifacts (fallback)...")
+            logger.info("Loading model from local artifacts (fallback, novo layout)...")
 
-            config_path = self.artifacts_path / 'model_config.json'
-            with open(config_path) as f:
-                self.config = json.load(f)
-            logger.info(f"Configuração carregada: {self.config['architecture']}")
+            # Caminhos padrão do novo layout
+            model_path = self.artifacts_path / "best_model.pt"
+            scalers_dir = self.artifacts_path / "scalers"
+            x_scaler_path = scalers_dir / "scaler.pkl"
+            y_scaler_path = scalers_dir / "y_scaler.pkl"
+            prep_config_path = scalers_dir / "preprocessing_config.json"
 
-            self.model = StockLSTM(
-                input_size=self.config['input_size'],
-                hidden_size=self.config['hidden_size'],
-                num_layers=self.config['num_layers'],
-                dropout=self.config['dropout']
-            )
+            if model_path.exists():
+                # Carregar checkpoint completo (novo layout)
+                checkpoint = torch.load(model_path, map_location=torch.device("cpu"), weights_only=False)
 
-            model_path = self.artifacts_path / 'model_lstm_1x16.pt'
-            state_dict = torch.load(model_path, map_location=torch.device('cpu'), weights_only=False)
-            self.model.load_state_dict(state_dict)
-            self.model.eval()
-            logger.info(f"✅ Modelo carregado: {model_path}")
+                # Reconstruir modelo a partir dos metadados do checkpoint
+                self.model = StockLSTM(
+                    num_tickers=checkpoint.get("num_tickers", 1),
+                    num_features=checkpoint.get("num_features", checkpoint.get("input_size", 19)),
+                    embedding_dim=checkpoint.get("embedding_dim", 8),
+                    hidden_size=checkpoint["hidden_size"],
+                    num_layers=checkpoint["num_layers"],
+                    dropout=checkpoint["dropout"],
+                )
+                self.model.load_state_dict(checkpoint["model_state_dict"])
+                self.model.eval()
+                logger.info(f"✅ Modelo carregado do checkpoint: {model_path}")
+            else:
+                # Fallback legado: tentar artefatos antigos (model_config.json + model_lstm_1x16.pt + scaler_corrected.pkl)
+                logger.info("Modelo novo não encontrado; tentando layout legado (model_lstm_1x16.pt)...")
 
-            scaler_path = self.artifacts_path / 'scaler_corrected.pkl'
-            self.scaler = joblib.load(scaler_path)
-            logger.info(f"✅ Scaler carregado: {scaler_path}")
+                legacy_config = self.artifacts_path / "model_config.json"
+                legacy_model = self.artifacts_path / "model_lstm_1x16.pt"
+                legacy_scaler = self.artifacts_path / "scaler_corrected.pkl"
 
+                if not (legacy_config.exists() and legacy_model.exists() and legacy_scaler.exists()):
+                    raise FileNotFoundError(f"Modelo não encontrado em {model_path} nem layout legado em {self.artifacts_path}")
+
+                with open(legacy_config) as f:
+                    self.config = json.load(f)
+
+                self.model = StockLSTM(
+                    num_tickers=1,
+                    num_features=self.config.get("input_size", 19),
+                    embedding_dim=self.config.get("embedding_dim", 8),
+                    hidden_size=self.config["hidden_size"],
+                    num_layers=self.config["num_layers"],
+                    dropout=self.config["dropout"],
+                )
+
+                state_dict = torch.load(legacy_model, map_location=torch.device("cpu"), weights_only=False)
+                self.model.load_state_dict(state_dict)
+                self.model.eval()
+                logger.info(f"✅ Modelo legado carregado: {legacy_model}")
+
+                self.scaler = joblib.load(legacy_scaler)
+                logger.info(f"✅ Scaler legado carregado: {legacy_scaler}")
+                return True
+
+            # Carregar scalers
+            if x_scaler_path.exists():
+                self.scaler = joblib.load(x_scaler_path)
+                logger.info(f"✅ X scaler carregado: {x_scaler_path}")
+            else:
+                raise FileNotFoundError(f"Scaler não encontrado em {x_scaler_path}")
+
+            if y_scaler_path.exists():
+                self.y_scaler = joblib.load(y_scaler_path)
+                logger.info(f"✅ y scaler carregado: {y_scaler_path}")
+            else:
+                # Don't assign - let get_y_scaler() handle fallback
+                logger.info("ℹ️ y_scaler não encontrado; get_y_scaler() criará wrapper do X scaler")
+
+            # Carregar config de preprocessing, se existir
+            if prep_config_path.exists():
+                with open(prep_config_path) as f:
+                    prep_cfg = json.load(f)
+                self.config = prep_cfg
+
+                # Map de tickers para multi-ticker, se presente
+                if "ticker_to_id" in prep_cfg:
+                    self.ticker_to_id = prep_cfg["ticker_to_id"]
+                    self.num_tickers = len(self.ticker_to_id)
+                elif "ticker_list" in prep_cfg:
+                    self.ticker_to_id = {t: i for i, t in enumerate(prep_cfg["ticker_list"])}
+                    self.num_tickers = len(self.ticker_to_id)
+                else:
+                    self.num_tickers = checkpoint.get("num_tickers", 1)
+
+                logger.info(f"✅ Config de preprocessing carregada: {prep_config_path}")
+            else:
+                # Config mínima se não houver JSON
+                self.config = {
+                    "num_features": checkpoint.get("num_features", checkpoint.get("input_size", 19)),
+                    "num_tickers": checkpoint.get("num_tickers", 1),
+                    "lookback": checkpoint.get("lookback", 60),
+                    "loaded_from": "local",
+                }
+                self.num_tickers = self.config["num_tickers"]
+                logger.info("ℹ️ preprocessing_config.json não encontrado; usando config mínima")
+
+            self._sync_allowed_tickers(self.config)
+
+            logger.success("✅ Modelo e scalers carregados do fallback local (novo layout)")
             return True
 
         except Exception as e:
@@ -412,12 +498,32 @@ class ModelService:
         return self.scaler
 
     def get_y_scaler(self):
-        """Get y target scaler (1 column) for denormalization."""
-        if self.y_scaler is None:
-            # Fallback to X scaler for backward compatibility
-            logger.warning("y_scaler not found, using X scaler")
-            return self.scaler
-        return self.y_scaler
+        """Get y target scaler (1 column) for denormalization.
+        
+        Returns a scaler that can denormalize single-column predictions.
+        Uses first column of X scaler (Close price).
+        """
+        if self.y_scaler is not None:
+            return self.y_scaler
+        
+        # Fallback: create single-column scaler from X scaler (first feature = Close)
+        from sklearn.preprocessing import MinMaxScaler
+        import numpy as np
+        
+        logger.warning("y_scaler not found, creating from X scaler first column (Close)")
+        
+        # Extract stats from first column (Close) of X scaler
+        close_scaler = MinMaxScaler()
+        close_scaler.min_ = np.array([self.scaler.min_[0]])
+        close_scaler.scale_ = np.array([self.scaler.scale_[0]])
+        close_scaler.data_min_ = np.array([self.scaler.data_min_[0]])
+        close_scaler.data_max_ = np.array([self.scaler.data_max_[0]])
+        close_scaler.data_range_ = np.array([self.scaler.data_range_[0]])
+        close_scaler.n_features_in_ = 1
+        close_scaler.n_samples_seen_ = self.scaler.n_samples_seen_
+        close_scaler.feature_range = self.scaler.feature_range
+        
+        return close_scaler
 
     def get_config(self) -> Dict[str, Any]:
         if self.config is None:
@@ -438,8 +544,14 @@ class ModelService:
         Returns:
             ID do ticker (0 se modelo single-ticker ou ticker não encontrado)
         """
+        if not self.allowed_tickers:
+            raise InvalidTickerError(ticker=ticker)
+
+        # Caso single-ticker sem mapping explícito
         if not self.ticker_to_id:
-            return 0  # Single-ticker fallback
+            if ticker in self.allowed_tickers or ticker.replace('.SA', '') in [t.replace('.SA', '') for t in self.allowed_tickers]:
+                return 0
+            raise InvalidTickerError(ticker=ticker)
 
         # Busca exata
         if ticker in self.ticker_to_id:
@@ -451,8 +563,7 @@ class ModelService:
             if key.replace('.SA', '') == ticker_base:
                 return self.ticker_to_id[key]
 
-        logger.warning(f"⚠️ Ticker '{ticker}' não encontrado no mapeamento. Usando ID=0")
-        return 0
+        raise InvalidTickerError(ticker=ticker)
 
     def is_multi_ticker(self) -> bool:
         """Verifica se o modelo suporta múltiplos tickers."""
@@ -502,3 +613,16 @@ class ModelService:
         predictions = output.cpu().numpy().flatten()
 
         return predictions
+
+    def _sync_allowed_tickers(self, cfg: Dict[str, Any]):
+        """Atualiza a lista de tickers permitidos com base na config carregada."""
+        if self.ticker_to_id:
+            self.allowed_tickers = list(self.ticker_to_id.keys())
+        elif isinstance(cfg, dict):
+            if "ticker_list" in cfg and cfg["ticker_list"]:
+                self.allowed_tickers = cfg["ticker_list"]
+            elif "ticker" in cfg:
+                self.allowed_tickers = [cfg["ticker"]]
+
+        if not self.allowed_tickers:
+            raise RuntimeError("Ticker mapping ausente nos artefatos. Treine/exporte com ticker_list/ticker_to_id.")

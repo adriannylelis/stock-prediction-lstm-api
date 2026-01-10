@@ -210,6 +210,9 @@ class TrainPipeline:
             "lookback": self.lookback,
         }
 
+        if "feature_cols" in self.data and self.data["feature_cols"]:
+            preprocessing_config["feature_cols"] = self.data["feature_cols"]
+
         if "ticker_to_id" in self.data:
             preprocessing_config["ticker_to_id"] = self.data["ticker_to_id"]
             preprocessing_config["ticker_list"] = list(self.data["ticker_to_id"].keys())
@@ -271,17 +274,25 @@ class TrainPipeline:
         )
         df = ingestion.download_and_validate()
 
-        # Feature engineering
+        # Feature engineering (using only SMA_20 and SMA_50 to match API with 60-day window)
         feature_eng = TechnicalIndicators(df)
-        df_features = feature_eng.add_all_indicators()
+        df_features = feature_eng.add_all_indicators(sma_windows=[20, 50])
         df_features = feature_eng.fill_missing_values()
+
+        # Derivar dinamicamente as colunas de features (esperado: 18 após indicadores com SMA_20 e SMA_50)
+        feature_cols = list(df_features.columns)
+        if len(feature_cols) != 18:
+            raise ValueError(
+                f"Esperado 18 features após engenharia, obtido {len(feature_cols)}: {feature_cols}"
+            )
 
         # Preprocessing
         preprocessor = StockPreprocessor(
             lookback_period=self.lookback,
             train_ratio=self.train_ratio,
             val_ratio=self.val_ratio,
-            test_ratio=self.test_ratio
+            test_ratio=self.test_ratio,
+            feature_cols=feature_cols,
         )
 
         data = preprocessor.prepare_data(df_features)
@@ -306,7 +317,8 @@ class TrainPipeline:
             "scaler": preprocessor.scaler,
             "ticker_to_id": {self.ticker: 0},
             "num_tickers": 1,
-            "num_features": X_train_tensor.shape[2]
+            "num_features": X_train_tensor.shape[2],
+            "feature_cols": feature_cols,
         }
 
     def _prepare_multi_ticker_data(self) -> Dict:
@@ -314,6 +326,9 @@ class TrainPipeline:
         logger.info(f"📊 Preparing data for {len(self.tickers)} tickers...")
 
         ticker_to_id = {ticker: idx for idx, ticker in enumerate(self.tickers)}
+
+        # Schema de referência: todas as ações devem ter as mesmas colunas/ordem
+        base_feature_cols = None
 
         all_sequences_X = []
         all_sequences_y = []
@@ -332,11 +347,27 @@ class TrainPipeline:
 
                 # Feature engineering
                 feature_eng = TechnicalIndicators(df)
-                df_features = feature_eng.add_all_indicators()
+                df_features = feature_eng.add_all_indicators(sma_windows=[20, 50])
                 df_features = feature_eng.fill_missing_values()
 
+                feature_cols = list(df_features.columns)
+                if len(feature_cols) != 19:
+                    raise ValueError(
+                        f"Esperado 19 features para {ticker}, obtido {len(feature_cols)}: {feature_cols}"
+                    )
+
+                if base_feature_cols is None:
+                    base_feature_cols = feature_cols
+                elif feature_cols != base_feature_cols:
+                    raise ValueError(
+                        f"Schema de features divergente em {ticker}. Esperado {base_feature_cols}, obtido {feature_cols}"
+                    )
+
                 # Preprocessing
-                preprocessor = StockPreprocessor(lookback_period=self.lookback)
+                preprocessor = StockPreprocessor(
+                    lookback_period=self.lookback,
+                    feature_cols=feature_cols,
+                )
                 X, y = preprocessor.create_sequences(df_features.values)
 
                 if len(X) == 0:
@@ -425,7 +456,8 @@ class TrainPipeline:
             "y_scaler": y_scalers_list[0] if y_scalers_list else None,  # y target scaler (CRITICAL for denormalization)
             "ticker_to_id": ticker_to_id,
             "num_tickers": len(self.tickers),
-            "num_features": X_combined.shape[2]
+            "num_features": X_combined.shape[2],
+            "feature_cols": base_feature_cols,
         }
 
     def _create_model(self):

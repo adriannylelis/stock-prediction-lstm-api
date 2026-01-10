@@ -1,15 +1,15 @@
 # Stock Prediction LSTM API 📈
 
-[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch 2.2+](https://img.shields.io/badge/PyTorch-2.2+-ee4c2c.svg)](https://pytorch.org/)
-[![Flask 3.1+](https://img.shields.io/badge/Flask-3.1+-000000.svg)](https://flask.palletsprojects.com/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch 2.2 (CPU)](https://img.shields.io/badge/PyTorch-2.2%20CPU-ee4c2c.svg)](https://pytorch.org/)
+[![Flask 3.x](https://img.shields.io/badge/Flask-3.x-000000.svg)](https://flask.palletsprojects.com/)
 [![Tests](https://img.shields.io/badge/tests-63%20total-blue.svg)](tests/)
 [![Unit Tests](https://img.shields.io/badge/unit-53%2F53%20✓-brightgreen.svg)](tests/unit/)
 [![Integration](https://img.shields.io/badge/integration-5%2F6%20✓-green.svg)](tests/integration/)
 [![E2E](https://img.shields.io/badge/e2e-5%2F7%20✓-yellow.svg)](tests/e2e/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-Sistema completo de **ML Engineering** para previsão de preços de ações usando LSTM (Long Short-Term Memory), com foco em boas práticas de engenharia, monitoramento, versionamento e qualidade de código.
+API de previsão de preços de ações com LSTM (Flask, porta 5001) e MLflow como fonte da verdade. Estado atual: modelo Production single-ticker (PETR4.SA), 18 features (sem SMA_200), lookback 60, PyTorch CPU.
 
 ---
 
@@ -60,18 +60,18 @@ curl -X POST http://localhost:5000/predict \
 Este projeto implementa um sistema completo de **previsão de preços de ações B3** com arquitetura **MLOps moderna**:
 
 - ✅ **MLflow-First**: Modelos, scalers, configs e métricas no MLflow (source of truth)
-- ✅ **Multi-Ticker**: Suporte a **36 tickers B3 válidos** com ticker embeddings de 8 dimensões
-- ✅ **Pipeline de Dados**: Ingestão automática (Yahoo Finance), **19 features técnicas** (OHLCV + 14 indicadores)
-- ✅ **Modelo LSTM**: PyTorch com **ticker embeddings**, 3 camadas, dropout 0.3, early stopping
+- ✅ **Single-Ticker (atual)**: Suporte apenas a **PETR4.SA** em produção (ticker único)
+- ✅ **Pipeline de Dados**: Ingestão automática (Yahoo Finance), **18 features** (OHLCV + indicadores sem SMA_200)
+- ✅ **Modelo LSTM**: PyTorch, 3 camadas, dropout 0.3, early stopping (sem embeddings no modelo atual)
 - ✅ **Treinamento**: MLflow tracking, model registry (Staging/Production), salvamento de artifacts
 - ✅ **CLI Simplificado**: Comando `train` com suporte a multi-ticker (`--use-all-tickers`)
 - ✅ **API REST**: Flask com 3 endpoints (health, model/info, predict), carregamento MLflow automático
 - ✅ **Qualidade**: **63 testes** (58 passing - 92.06%), shapes validados, correções críticas aplicadas
 
 **📊 Relatório Técnico Completo**: Veja [RELATORIO_PROJETO.md](RELATORIO_PROJETO.md) para análise detalhada de:
-- Arquitetura e shapes (19 features + 8 embedding = 27 input total)
-- Como funciona o ticker embedding
-- Tickers suportados (36 válidos, 7 removidos por falta de dados)
+- Arquitetura e shapes (18 features ativas)
+- Plano futuro de multi-ticker/embeddings (indisponível no modelo atual)
+- Ticker suportado: PETR4.SA
 - Correções críticas (Y normalization, batch consistency, deduplication)
 - Dimensionalidade da rede (~342k parâmetros)
 
@@ -94,10 +94,10 @@ stock-prediction-lstm-api/
 │   ├── ml/                      # Core ML components
 │   │   ├── data/                # Data pipeline
 │   │   │   ├── ingestion.py         # Yahoo Finance integration
-│   │   │   ├── feature_engineering.py  # 19 technical indicators
+│   │   │   ├── feature_engineering.py  # 18 technical indicators (sem SMA_200)
 │   │   │   └── preprocessing.py     # Normalization & sequences (PyTorch)
 │   │   ├── models/
-│   │   │   └── lstm.py              # PyTorch LSTM with Ticker Embeddings
+│   │   │   └── lstm.py              # PyTorch LSTM (single-ticker no momento)
 │   │   ├── training/
 │   │   │   ├── trainer.py           # Training loop + MLflow tracking
 │   │   │   ├── early_stopping.py    # Callback with min_delta
@@ -113,11 +113,11 @@ stock-prediction-lstm-api/
 │   │       ├── logging.py           # Loguru structured logging
 │   │       └── seed.py              # Reproducibility (torch + numpy)
 │   ├── api/                     # REST API (Flask)
-│   │   ├── main.py                  # Application factory
+│   │   ├── main.py                  # Application factory (porta 5001)
 │   │   ├── routes/                  # API endpoints
 │   │   │   ├── health.py            # GET /health
 │   │   │   ├── model_info.py        # GET /model/info
-│   │   │   └── prediction.py        # POST /predict
+│   │   │   └── prediction.py        # POST /predict (ticker único PETR4.SA)
 │   │   └── services/                # Business logic
 │   │       ├── model_service.py     # MLflow model loader (singleton)
 │   │       ├── data_service.py      # yfinance integration
@@ -134,27 +134,23 @@ stock-prediction-lstm-api/
 │   ├── main.py                  # CLI entry point
 │   └── train.py                 # Train command (130 lines)
 ├── tests/                       # 📊 63 testes automatizados
-│   ├── unit/                    # 53 testes (100% passando)
-│   │   ├── test_metrics.py          # 7 testes
-│   │   ├── test_model.py            # 5 testes
-│   │   ├── test_model_deployer.py   # 10 testes
-│   │   ├── test_model_service.py    # 11 testes
-│   │   ├── test_persistence.py      # 15 testes
-│   │   └── test_preprocessing.py    # 7 testes
-│   ├── integration/             # 6 testes (5 passando, 1 skipped)
-│   │   ├── test_full_pipeline.py    # 3 testes
-│   │   └── test_pipelines.py        # 3 testes
-│   └── e2e/                     # 7 testes (5 passando, 1 failed, 1 skipped)
-│       └── test_mlops_complete.py   # Complete MLOps workflow
-├── configs/                     # Configurações
-│   └── production_model.yaml        # Production model config
-├── data/                        # MLflow-first data structure
-│   ├── mlflow/
-│   │   └── tracking/                # 📦 MLflow tracking store
-│   └── versioned/                   # Data versioning (tests only)
+## 🚀 Quick Start (estado atual)
+
+```bash
+# Subir backend Flask (porta 5001)
+docker compose build backend && docker compose up -d backend
+
+# Health e modelo
+curl -s http://localhost:5001/health
+curl -s http://localhost:5001/model/info
+
+# Predição (único ticker suportado)
 ├── artifacts/                   # Local artifacts (fallback)
 │   └── models/                      # Checkpoints locais (keep 3)
 ├── notebooks/
+```
+
+**Modelo em produção:** models:/stock-lstm-model/Production (v2, val_loss ≈ 0.00101), 18 features, lookback 60, ticker único PETR4.SA. Tracking local em `data/mlflow/tracking` (montado via docker-compose).
 │   └── eda.ipynb                # Exploratory analysis
 ├── docs/                        # Documentação
 │   ├── TESTING_PLAN.md              # Plano de testes

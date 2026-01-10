@@ -9,9 +9,11 @@ services:
       - "5001:5001"
     environment:
       - FLASK_ENV=production
+      - FLASK_PORT=5001
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./artifacts:/app/artifacts:ro
+      - ./artifacts:/app/artifacts
+      - ./data:/app/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
       interval: 30s

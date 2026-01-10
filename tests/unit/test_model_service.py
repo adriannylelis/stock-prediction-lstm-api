@@ -13,7 +13,9 @@ import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import joblib
 import pytest
+import torch
 import yaml
 
 from src.api.services.model_service import ModelService
@@ -55,27 +57,63 @@ def temp_production_config():
 
 @pytest.fixture
 def temp_artifacts_dir():
-    """Create temporary artifacts directory with mock files"""
+    """Create temporary artifacts directory with new layout (best_model + scalers)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        artifacts_path = Path(tmpdir) / "artifacts" / "models"
+        scalers_path = artifacts_path / "scalers"
+        scalers_path.mkdir(parents=True)
+
+        # Checkpoint with minimal metadata and empty state dict
+        checkpoint = {
+            "num_tickers": 1,
+            "num_features": 5,
+            "embedding_dim": 8,
+            "hidden_size": 16,
+            "num_layers": 1,
+            "dropout": 0.2,
+            "model_state_dict": {},
+        }
+        torch.save(checkpoint, artifacts_path / "best_model.pt")
+
+        # Scalers (simple dict objects are enough for tests)
+        joblib.dump({"scaler": "x"}, scalers_path / "scaler.pkl")
+        joblib.dump({"scaler": "y"}, scalers_path / "y_scaler.pkl")
+
+        # Preprocessing config with feature metadata
+        prep_config = {
+            "num_features": 5,
+            "num_tickers": 1,
+            "lookback": 60,
+            "ticker_to_id": {"TEST": 0},
+        }
+        with open(scalers_path / "preprocessing_config.json", "w") as f:
+            json.dump(prep_config, f)
+
+        yield artifacts_path
+
+
+@pytest.fixture
+def temp_legacy_artifacts_dir():
+    """Create temporary artifacts directory with legacy layout (model_lstm_1x16)."""
     with tempfile.TemporaryDirectory() as tmpdir:
         artifacts_path = Path(tmpdir) / "artifacts" / "models"
         artifacts_path.mkdir(parents=True)
 
-        # Create mock config
-        config = {
+        legacy_config = {
             "input_size": 5,
             "hidden_size": 16,
             "num_layers": 1,
             "dropout": 0.2,
-            "architecture": "LSTM"
+            "architecture": "LSTM",
         }
-        with open(artifacts_path / "model_config.json", 'w') as f:
-            json.dump(config, f)
+        with open(artifacts_path / "model_config.json", "w") as f:
+            json.dump(legacy_config, f)
 
-        # Create mock model file (empty is fine for tests)
-        (artifacts_path / "model_lstm_1x16.pt").touch()
+        # Legacy model/state dict
+        torch.save({}, artifacts_path / "model_lstm_1x16.pt")
 
-        # Create mock scaler (empty is fine for tests)
-        (artifacts_path / "scaler_corrected.pkl").touch()
+        # Legacy scaler
+        joblib.dump({"scaler": "legacy"}, artifacts_path / "scaler_corrected.pkl")
 
         yield artifacts_path
 
@@ -108,13 +146,23 @@ def test_load_from_mlflow_success(temp_production_config):
 
 def test_load_from_local_artifacts_success(temp_artifacts_dir):
     """Test successful model loading from local artifacts"""
-    # Mock PyTorch model
     mock_model = Mock()
-    mock_scaler = Mock()
+    mock_model.load_state_dict = Mock()
+    mock_model.eval = Mock()
+
+    checkpoint = {
+        "num_tickers": 1,
+        "num_features": 5,
+        "embedding_dim": 8,
+        "hidden_size": 16,
+        "num_layers": 1,
+        "dropout": 0.2,
+        "model_state_dict": {},
+    }
 
     with patch('src.api.services.model_service.StockLSTM', return_value=mock_model):
-        with patch('torch.load', return_value={}):  # Empty state dict
-            with patch('joblib.load', return_value=mock_scaler):
+        with patch('torch.load', return_value=checkpoint):
+            with patch('joblib.load', return_value={"scaler": "x"}):
                 service = ModelService.__new__(ModelService)
                 service.artifacts_path = temp_artifacts_dir
 
@@ -128,24 +176,23 @@ def test_load_from_local_artifacts_success(temp_artifacts_dir):
 def test_fallback_to_local_when_mlflow_fails(temp_production_config, temp_artifacts_dir):
     """Test fallback to local artifacts when MLflow fails"""
     mock_model = Mock()
+    mock_model.load_state_dict = Mock()
     mock_model.eval = Mock()
-    mock_scaler = Mock()
 
-    # Mock state dict for torch.load
-    mock_state_dict = {
-        'num_tickers': 2,
-        'num_features': 19,
-        'embedding_dim': 8,
-        'hidden_size': 16,
-        'num_layers': 1,
-        'dropout': 0.2
+    checkpoint = {
+        "num_tickers": 1,
+        "num_features": 5,
+        "embedding_dim": 8,
+        "hidden_size": 16,
+        "num_layers": 1,
+        "dropout": 0.2,
+        "model_state_dict": {},
     }
 
-    # Patch paths BEFORE ModelService init
-    with patch('src.api.services.model_service.StockLSTM', return_value=mock_model):
-        with patch('torch.load', return_value=mock_state_dict):
-            with patch('joblib.load', return_value=mock_scaler):
-                with patch('mlflow.pytorch.load_model', side_effect=Exception("MLflow down")):
+    with patch('mlflow.pytorch.load_model', side_effect=Exception("MLflow down")):
+        with patch('src.api.services.model_service.StockLSTM', return_value=mock_model):
+            with patch('torch.load', return_value=checkpoint):
+                with patch('joblib.load', return_value={"scaler": "x"}):
                     # Create service without auto-loading
                     service = ModelService.__new__(ModelService)
                     service._initialized = False
@@ -160,6 +207,26 @@ def test_fallback_to_local_when_mlflow_fails(temp_production_config, temp_artifa
                     service._initialized = True
 
     # Should fall back to local
+    assert service.model is not None
+    assert service.scaler is not None
+
+
+def test_load_from_legacy_artifacts_success(temp_legacy_artifacts_dir):
+    """Ensure legacy layout still loads when best_model.pt is missing."""
+    mock_model = Mock()
+    mock_model.load_state_dict = Mock()
+    mock_model.eval = Mock()
+    mock_scaler = Mock()
+
+    with patch('src.api.services.model_service.StockLSTM', return_value=mock_model):
+        with patch('torch.load', return_value={}):
+            with patch('joblib.load', return_value=mock_scaler):
+                service = ModelService.__new__(ModelService)
+                service.artifacts_path = temp_legacy_artifacts_dir
+
+                result = service._load_from_local_artifacts()
+
+    assert result is True
     assert service.model is not None
     assert service.scaler is not None
 
