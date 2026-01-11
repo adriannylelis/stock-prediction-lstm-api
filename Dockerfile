@@ -47,19 +47,42 @@ ARG DOWNLOAD_ARTIFACTS="true"
 RUN if [ "$DOWNLOAD_ARTIFACTS" = "true" ] && [ ! -f "artifacts/model.pt" ]; then \
         echo "📥 Downloading artifacts from GitHub Release..."; \
         LATEST_RELEASE=$(curl -s https://api.github.com/repos/${GITHUB_REPO}/releases/latest); \
-        DOWNLOAD_URL=$(echo $LATEST_RELEASE | jq -r '.assets[0].browser_download_url'); \
-        RELEASE_TAG=$(echo $LATEST_RELEASE | jq -r '.tag_name'); \
+        \
+        # Verificar se a resposta da API é válida \
+        if [ -z "$LATEST_RELEASE" ] || echo "$LATEST_RELEASE" | grep -q "Not Found"; then \
+            echo "❌ No releases found in repository."; \
+            echo "⚠️  Please create a release first by running the training workflow."; \
+            echo "📦 Creating empty artifacts directory for now..."; \
+            mkdir -p artifacts/models/scalers; \
+            exit 0; \
+        fi; \
+        \
+        # Verificar se há assets no release \
+        RELEASE_TAG=$(echo "$LATEST_RELEASE" | jq -r '.tag_name'); \
+        ASSET_COUNT=$(echo "$LATEST_RELEASE" | jq '.assets | length'); \
+        \
+        if [ "$ASSET_COUNT" -eq 0 ] || [ "$ASSET_COUNT" = "null" ]; then \
+            echo "❌ No assets found in latest release '$RELEASE_TAG'."; \
+            echo "⚠️  Please ensure the training workflow completed successfully."; \
+            echo "📦 Creating empty artifacts directory for now..."; \
+            mkdir -p artifacts/models/scalers; \
+            exit 0; \
+        fi; \
+        \
+        # Baixar artifacts \
+        DOWNLOAD_URL=$(echo "$LATEST_RELEASE" | jq -r '.assets[0].browser_download_url'); \
         echo "📌 Latest release: $RELEASE_TAG"; \
-        echo "📥 Download URL: $DOWNLOAD_URL"; \
+        echo "📥 Downloading from: $DOWNLOAD_URL"; \
+        \
         curl -L -o artifacts.zip "$DOWNLOAD_URL" && \
-        mkdir -p artifacts && \
-        unzip artifacts.zip -d artifacts/ && \
+        mkdir -p artifacts/models && \
+        unzip -q artifacts.zip -d artifacts/models/ && \
         rm artifacts.zip && \
         echo "✅ Artifacts downloaded successfully"; \
-        ls -lah artifacts/; \
+        ls -lah artifacts/models/; \
     else \
         echo "📦 Using local artifacts (dev mode)"; \
-        mkdir -p artifacts; \
+        mkdir -p artifacts/models/scalers; \
     fi
 
 # Criar usuário não-root para segurança e garantir permissões de escrita
