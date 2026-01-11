@@ -642,19 +642,19 @@ class Trainer:
             # Ensure 2D for scaler (handles both 1D and 2D arrays)
             pred_2d = predictions.reshape(-1, 1) if predictions.ndim == 1 else predictions
             targ_2d = targets.reshape(-1, 1) if targets.ndim == 1 else targets
-            
+
             # Check if scaler has multiple features (need to extract Close column)
             if hasattr(scaler, 'n_features_in_') and scaler.n_features_in_ > 1:
                 # Scaler is for all features - need to create dummy array with only Close column
                 # Close is at index 0 in the feature array
                 logger.debug(f"Scaler has {scaler.n_features_in_} features, using only Close column (index 0) for denormalization")
-                
+
                 # Create dummy arrays with zeros for other features, predictions/targets at index 0
                 dummy_pred = np.zeros((len(pred_2d), scaler.n_features_in_))
                 dummy_pred[:, 0] = pred_2d.flatten()
                 dummy_targ = np.zeros((len(targ_2d), scaler.n_features_in_))
                 dummy_targ[:, 0] = targ_2d.flatten()
-                
+
                 # Denormalize and extract Close column
                 predictions = scaler.inverse_transform(dummy_pred)[:, 0]
                 targets = scaler.inverse_transform(dummy_targ)[:, 0]
