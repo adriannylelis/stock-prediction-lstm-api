@@ -52,8 +52,9 @@ class Trainer:
         early_stopping_patience: Optional[int] = None,
         early_stopping_min_delta: float = 0.0001,
         experiment_name: Optional[str] = None,
-        tracking_uri: str = "file:./mlruns",
+        tracking_uri: str = "file:data/mlflow/tracking",
         checkpoint_dir: str = "artifacts/models",
+        extra_params: Optional[Dict] = None,
     ) -> None:
         """Initialize trainer.
 
@@ -68,6 +69,7 @@ class Trainer:
             experiment_name: MLflow experiment name. None to disable tracking.
             tracking_uri: MLflow tracking URI.
             checkpoint_dir: Directory to save model checkpoints.
+            extra_params: Additional parameters to log in MLflow (ticker, lookback, hidden_layer, etc).
         """
         self.model = model.to(device)
         self.device = device
@@ -89,6 +91,7 @@ class Trainer:
             self.early_stopping = None
 
         # MLflow tracking
+        self.experiment_name = experiment_name  # Store for logging
         if experiment_name:
             self.tracker = ExperimentTracker(
                 experiment_name=experiment_name, tracking_uri=tracking_uri
@@ -99,6 +102,9 @@ class Trainer:
         # Checkpoint directory
         self.checkpoint_dir = Path(checkpoint_dir)
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+        # Extra parameters for MLflow
+        self.extra_params = extra_params or {}
 
         # Training history
         self.history = {"train_loss": [], "val_loss": [], "epoch": []}
@@ -142,12 +148,25 @@ class Trainer:
         self.model.train()
         total_loss = 0.0
 
-        for X_batch, y_batch in train_loader:
-            X_batch = X_batch.to(self.device)
-            y_batch = y_batch.to(self.device)
+        for batch in train_loader:
+            # Unpack batch - pode ter 2 ou 3 elementos (X, y) ou (X, y, ticker_ids)
+            # Batch order: (X, y, ticker_ids)
+            if len(batch) == 3:
+                X_batch, y_batch, ticker_ids_batch = batch
+                X_batch = X_batch.to(self.device)
+                y_batch = y_batch.to(self.device)  # Already 1D from pipeline
+                ticker_ids_batch = ticker_ids_batch.long().to(self.device)  # Force long dtype
 
-            # Forward pass
-            outputs = self.model(X_batch)
+                # Forward pass com ticker_ids (embedding model)
+                outputs, _ = self.model(X_batch, ticker_ids_batch)
+            else:
+                X_batch, y_batch = batch
+                X_batch = X_batch.to(self.device)
+                y_batch = y_batch.squeeze().to(self.device)  # Ensure 1D: (batch,)
+
+                # Forward pass sem ticker_ids (backward compatibility)
+                outputs, _ = self.model(X_batch)
+
             loss = self.criterion(outputs.squeeze(), y_batch)
 
             # Backward pass
@@ -173,13 +192,25 @@ class Trainer:
         total_loss = 0.0
 
         with torch.no_grad():
-            for X_batch, y_batch in val_loader:
-                X_batch = X_batch.to(self.device)
-                y_batch = y_batch.to(self.device)
+            for batch in val_loader:
+                # Unpack batch - pode ter 2 ou 3 elementos (X, y) ou (X, y, ticker_ids)
+                if len(batch) == 3:
+                    X_batch, y_batch, ticker_ids_batch = batch
+                    X_batch = X_batch.to(self.device)
+                    y_batch = y_batch.to(self.device)  # Already 1D from pipeline
+                    ticker_ids_batch = ticker_ids_batch.long().to(self.device)  # Force long dtype
 
-                outputs = self.model(X_batch)
+                    # Forward pass com ticker_ids (embedding model)
+                    outputs, _ = self.model(X_batch, ticker_ids_batch)
+                else:
+                    X_batch, y_batch = batch
+                    X_batch = X_batch.to(self.device)
+                    y_batch = y_batch.squeeze().to(self.device)  # Ensure 1D: (batch,)
+
+                    # Forward pass sem ticker_ids (backward compatibility)
+                    outputs, _ = self.model(X_batch)
+
                 loss = self.criterion(outputs.squeeze(), y_batch)
-
                 total_loss += loss.item()
 
         avg_loss = total_loss / len(val_loader)
@@ -212,16 +243,35 @@ class Trainer:
             self.tracker.start_run(run_name=run_name)
 
             # Log hyperparameters
-            self.tracker.log_params(
-                {
-                    "learning_rate": self.optimizer.param_groups[0]["lr"],
-                    "epochs": epochs,
-                    "batch_size": train_loader.batch_size,
-                    "model_class": self.model.__class__.__name__,
-                    "loss_function": self.criterion.__class__.__name__,
-                    "device": str(self.device),
-                }
-            )
+            params = {
+                "learning_rate": self.optimizer.param_groups[0]["lr"],
+                "epochs": epochs,
+                "batch_size": train_loader.batch_size,
+                "model_class": self.model.__class__.__name__,
+                "loss_function": self.criterion.__class__.__name__,
+                "device": str(self.device),
+            }
+
+            # Add extra parameters if provided
+            if self.extra_params:
+                params.update(self.extra_params)
+
+            self.tracker.log_params(params)
+
+        # ✅ Store sample data for model signature
+        try:
+            sample_batch = next(iter(train_loader))
+            self.X_train_sample = sample_batch[0][:5]  # Store 5 samples (X)
+            # Store ticker_ids if available (for embedding models)
+            # Batch order is: (X, y, ticker_ids), so ticker_ids is at index 2
+            if len(sample_batch) >= 3:
+                self.ticker_ids_sample = sample_batch[2][:5]  # ticker_ids at index 2 (not 1!)
+                logger.debug(f"Captured ticker_ids samples: min={self.ticker_ids_sample.min().item()}, max={self.ticker_ids_sample.max().item()}")
+            else:
+                self.ticker_ids_sample = None
+        except Exception:
+            self.X_train_sample = None
+            self.ticker_ids_sample = None
 
         logger.info(f"Starting training for {epochs} epochs...")
 
@@ -257,7 +307,7 @@ class Trainer:
                         f"Epoch [{epoch + 1:3d}/{epochs}] | "
                         f"Train Loss: {train_loss:.6f} | "
                         f"Val Loss: {val_loss:.6f} | "
-                        f"Best: {self.best_val_loss:.6f} (epoch {self.best_epoch})"
+                        f"Best: {self.best_val_loss:.6f} (at epoch {self.best_epoch})"
                     )
 
                 # Early stopping
@@ -267,7 +317,7 @@ class Trainer:
                         break
 
             logger.info(
-                f"✓ Training complete! Best val loss: {self.best_val_loss:.6f} (epoch {self.best_epoch})"
+                f"✓ Training complete! Best val loss: {self.best_val_loss:.6f} (achieved at epoch {self.best_epoch})"
             )
 
             # Log best metrics
@@ -276,10 +326,190 @@ class Trainer:
                     {"best_val_loss": self.best_val_loss, "best_epoch": self.best_epoch}
                 )
 
-                # Log model
+                # Log model artifact and register in MLflow Model Registry
                 model_path = self.checkpoint_dir / "best_model.pt"
                 if model_path.exists():
                     self.tracker.log_artifact(str(model_path))
+
+                    # ✅ Register model with complete metadata
+                    from datetime import datetime
+
+                    import mlflow.pytorch
+                    from mlflow.tracking import MlflowClient
+
+                    # Handle both single ticker and multi-ticker models
+                    ticker = self.extra_params.get('ticker')
+                    tickers_str = self.extra_params.get('tickers')
+                    model_type = self.extra_params.get('model_type', 'single')
+
+                    # Always use standard model name for consistency
+                    model_name = "stock-lstm-model"
+
+                    # Prepare sample data for model signature
+                    sample_input = None
+                    sample_output = None
+                    input_example = None
+                    signature = None
+
+                    if hasattr(self, 'X_train_sample') and self.X_train_sample is not None:
+                        with torch.no_grad():
+                            # Check if model needs ticker_ids (embedding model)
+                            if hasattr(self, 'ticker_ids_sample') and self.ticker_ids_sample is not None:
+                                # Embedding model: create input with both features and ticker_ids
+                                features_sample = self.X_train_sample.cpu().numpy()
+                                ticker_ids_sample = self.ticker_ids_sample.cpu().numpy()
+
+                                logger.debug(f"Creating MLflow signature with ticker_ids: min={ticker_ids_sample.min()}, max={ticker_ids_sample.max()}, shape={ticker_ids_sample.shape}")
+                                logger.debug(f"Model expects num_tickers={self.model.num_tickers}")
+
+                                # Create structured input as dictionary
+                                sample_input = {
+                                    "features": features_sample,
+                                    "ticker_ids": ticker_ids_sample
+                                }
+
+                                # Get model output
+                                sample_output = self.model(
+                                    torch.tensor(features_sample, dtype=torch.float32).to(self.device),
+                                    torch.tensor(ticker_ids_sample, dtype=torch.long).to(self.device)
+                                ).cpu().numpy()
+
+                                # Create input example with first sample
+                                input_example = {
+                                    "features": features_sample[:1],
+                                    "ticker_ids": ticker_ids_sample[:1]
+                                }
+
+                                # Infer signature from structured input
+                                signature = mlflow.models.infer_signature(sample_input, sample_output)
+                            else:
+                                # Backward compatibility (old one-hot models)
+                                sample_input = self.X_train_sample.cpu().numpy()
+                                sample_output = self.model(
+                                    torch.tensor(sample_input).to(self.device)
+                                ).cpu().numpy()
+                                input_example = sample_input[:1]
+                                signature = mlflow.models.infer_signature(sample_input, sample_output)
+
+                    # Log model with signature and metadata
+                    try:
+                        # ✅ Log scaler and preprocessing config as artifacts FIRST
+                        scaler_path = self.extra_params.get('scaler_path')
+                        if scaler_path and Path(scaler_path).exists():
+                            self.tracker.log_artifact(scaler_path)
+                            logger.info(f"📦 Logged X scaler artifact: {scaler_path}")
+
+                        # Log y_scaler (for multi-ticker models)
+                        y_scaler_path = self.extra_params.get('y_scaler_path')
+                        if y_scaler_path and Path(y_scaler_path).exists():
+                            self.tracker.log_artifact(y_scaler_path)
+                            logger.info(f"📦 Logged y scaler artifact: {y_scaler_path}")
+
+                        preprocessing_config_path = self.extra_params.get('preprocessing_config_path')
+                        if preprocessing_config_path and Path(preprocessing_config_path).exists():
+                            self.tracker.log_artifact(preprocessing_config_path)
+                            logger.info(f"📦 Logged preprocessing config: {preprocessing_config_path}")
+
+                        model_info = mlflow.pytorch.log_model(
+                            self.model,
+                            "model",  # artifact name (not artifact_path)
+                            registered_model_name=model_name,
+                            signature=signature,
+                            input_example=input_example,
+                            pip_requirements=[
+                                f"torch=={torch.__version__}",
+                                "numpy>=1.24.0",
+                                "scikit-learn>=1.3.0",
+                            ]
+                        )
+
+                        # Get latest version
+                        client = MlflowClient()
+                        run_id = self.tracker.get_run_id()
+                        model_versions = client.search_model_versions(f"name='{model_name}'")
+
+                        if model_versions:
+                            latest_version = max([int(v.version) for v in model_versions])
+
+                            # ✅ Add descriptive tags
+                            client.set_model_version_tag(
+                                model_name,
+                                str(latest_version),
+                                "validation_loss",
+                                f"{self.best_val_loss:.6f}"
+                            )
+
+                            client.set_model_version_tag(
+                                model_name,
+                                str(latest_version),
+                                "training_date",
+                                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            )
+
+                            client.set_model_version_tag(
+                                model_name,
+                                str(latest_version),
+                                "ticker",
+                                ticker
+                            )
+
+                            client.set_model_version_tag(
+                                model_name,
+                                str(latest_version),
+                                "best_epoch",
+                                str(self.best_epoch)
+                            )
+
+                            # ✅ Add detailed description
+                            description = (
+                                f"LSTM Stock Prediction Model\\n"
+                                f"- Ticker: {ticker}\\n"
+                                f"- Validation Loss: {self.best_val_loss:.6f}\\n"
+                                f"- Best Epoch: {self.best_epoch}\\n"
+                                f"- Hidden Size: {self.extra_params.get('hidden_size', 'N/A')}\\n"
+                                f"- Num Layers: {self.extra_params.get('num_layers', 'N/A')}\\n"
+                                f"- Dropout: {self.extra_params.get('dropout', 'N/A')}\\n"
+                                f"- Lookback: {self.extra_params.get('lookback', 'N/A')}"
+                            )
+
+                            client.update_model_version(
+                                model_name,
+                                str(latest_version),
+                                description=description
+                            )
+
+                            # ✅ Auto-transition to Staging if performance is good
+                            staging_threshold = self.extra_params.get('staging_threshold', 0.01)
+                            if self.best_val_loss < staging_threshold:
+                                client.transition_model_version_stage(
+                                    name=model_name,
+                                    version=str(latest_version),
+                                    stage="Staging",
+                                    archive_existing_versions=False
+                                )
+                                logger.success(
+                                    f"✅ Model v{latest_version} → Staging "
+                                    f"(val_loss={self.best_val_loss:.6f} < {staging_threshold})"
+                                )
+                            else:
+                                logger.info(
+                                    f"Model v{latest_version} remains in None stage "
+                                    f"(val_loss={self.best_val_loss:.6f} >= {staging_threshold})"
+                                )
+
+                            logger.success(
+                                f"📝 Model registered: {model_name} v{latest_version} "
+                                f"(tracked in experiment: {self.experiment_name})"
+                            )
+                        else:
+                            logger.info(
+                                f"Model registered in MLflow: {model_name} "
+                                f"(tracked in experiment: {self.experiment_name})"
+                            )
+
+                    except Exception as e:
+                        logger.warning(f"Model registration failed: {e}")
+                        logger.info("Model saved locally but not registered in MLflow")
 
         except Exception as e:
             logger.error(f"Training failed: {e}")
@@ -296,36 +526,58 @@ class Trainer:
     def save_checkpoint(
         self, epoch: int, is_best: bool = False, filename: Optional[str] = None
     ) -> None:
-        """Save model checkpoint.
+        """Save model checkpoint with automatic versioning.
 
         Args:
             epoch: Current epoch number.
-            is_best: If True, save as best model.
+            is_best: If True, save as best model (creates timestamped version + best_model.pt).
             filename: Custom filename. If None, uses default naming.
         """
+        from datetime import datetime
+
         if filename is None:
             if is_best:
+                # Save versioned copy with timestamp for history
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                ticker = self.extra_params.get('ticker', 'model')
+                versioned_filename = f"best_model_{ticker.replace('.SA', '')}_{timestamp}.pt"
+
+                # Save versioned copy first
+                versioned_path = self.checkpoint_dir / versioned_filename
+                self._save_checkpoint_file(versioned_path, epoch)
+                logger.info(f"💾 Versioned: {versioned_filename}")
+
+                # Then save as best_model.pt for backward compatibility
                 filename = "best_model.pt"
             else:
                 filename = f"checkpoint_epoch_{epoch + 1}.pt"
 
         filepath = self.checkpoint_dir / filename
+        self._save_checkpoint_file(filepath, epoch)
+        logger.debug(f"Saved checkpoint: {filepath}")
 
+    def _save_checkpoint_file(self, filepath: Path, epoch: int) -> None:
+        """Save checkpoint to file.
+        
+        Args:
+            filepath: Path to save checkpoint.
+            epoch: Current epoch number.
+        """
         checkpoint = {
             "epoch": epoch + 1,
             "model_state_dict": self.model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
             "best_val_loss": self.best_val_loss,
             "history": self.history,
-            # Save model architecture for inference
-            "input_size": self.model.input_size,
+            # Save complete model architecture for inference (ticker embedding support)
+            "num_tickers": self.model.num_tickers,
+            "num_features": self.model.num_features,
+            "embedding_dim": self.model.embedding_dim,
             "hidden_size": self.model.hidden_size,
             "num_layers": self.model.num_layers,
-            "dropout": self.model.dropout_prob,  # Save dropout probability, not layer
+            "dropout": self.model.dropout_rate,
         }
-
         torch.save(checkpoint, filepath)
-        logger.debug(f"Saved checkpoint: {filepath}")
 
     def load_checkpoint(self, filepath: str) -> None:
         """Load model checkpoint.
@@ -358,11 +610,23 @@ class Trainer:
         all_targets = []
 
         with torch.no_grad():
-            for X_batch, y_batch in test_loader:
-                X_batch = X_batch.to(self.device)
-                y_batch = y_batch.to(self.device)
+            for batch in test_loader:
+                # Unpack batch - pode ter 2 ou 3 elementos (X, y) ou (X, y, ticker_ids)
+                if len(batch) == 3:
+                    X_batch, y_batch, ticker_ids_batch = batch
+                    X_batch = X_batch.to(self.device)
+                    y_batch = y_batch.to(self.device)
+                    ticker_ids_batch = ticker_ids_batch.long().to(self.device)  # Force long dtype
 
-                outputs = self.model(X_batch)
+                    # Forward pass com ticker_ids (embedding model)
+                    outputs, _ = self.model(X_batch, ticker_ids_batch)
+                else:
+                    X_batch, y_batch = batch
+                    X_batch = X_batch.to(self.device)
+                    y_batch = y_batch.to(self.device)
+
+                    # Forward pass sem ticker_ids (backward compatibility)
+                    outputs, _ = self.model(X_batch)
 
                 all_predictions.extend(outputs.squeeze().cpu().numpy())
                 all_targets.extend(y_batch.cpu().numpy())
@@ -372,8 +636,11 @@ class Trainer:
 
         # Denormalize if scaler provided
         if scaler:
-            predictions = scaler.inverse_transform(predictions.reshape(-1, 1)).flatten()
-            targets = scaler.inverse_transform(targets.reshape(-1, 1)).flatten()
+            # Ensure 2D for scaler (handles both 1D and 2D arrays)
+            pred_2d = predictions.reshape(-1, 1) if predictions.ndim == 1 else predictions
+            targ_2d = targets.reshape(-1, 1) if targets.ndim == 1 else targets
+            predictions = scaler.inverse_transform(pred_2d).flatten()
+            targets = scaler.inverse_transform(targ_2d).flatten()
 
         # Calculate metrics
         metrics = calculate_all_metrics(targets, predictions)

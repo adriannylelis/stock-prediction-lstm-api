@@ -22,13 +22,20 @@ export function PredictionCard({ prediction }: PredictionCardProps) {
     ? 'secondary' 
     : 'destructive';
 
+  const confidenceLabel =
+    prediction.confidence === 'alta'
+      ? 'Confiança Alta'
+      : prediction.confidence === 'média'
+      ? 'Confiança Média'
+      : 'Confiança Baixa';
+
   return (
     <Card className="transition-all duration-300 hover:shadow-lg hover:scale-[1.02]">
       <CardHeader>
         <CardTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <span className="text-2xl sm:text-3xl">{prediction.ticker}</span>
           <Badge variant={confidenceVariant} className="text-xs sm:text-sm">
-            {prediction.confidence.toUpperCase()} Confiança
+            {confidenceLabel}
           </Badge>
         </CardTitle>
       </CardHeader>

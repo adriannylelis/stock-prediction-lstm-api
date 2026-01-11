@@ -211,19 +211,33 @@ __marimo__/
 .github/instructions*
 
 # Project-specific
-# MLflow
+# ✅ MLflow tracking and artifacts (now in data/)
+data/mlflow/
+!data/mlflow/.gitkeep
+
+# Legacy MLflow paths (ignore if created accidentally)
+experiments/
 mlruns/
 mlartifacts/
 
-# Models and artifacts
-artifacts/
-artifacts_test/
+# Old models/ directory (migrated to artifacts/models/)
+models/
 
-# Data
+# Data (generated, not versioned)
 data/raw/
 data/processed/
 data/versioned/
+data/predictions/
 data_test/
+
+# Artifacts - Trained models (NOT committed to Git, downloaded from GitHub Releases)
+# Durante desenvolvimento local, use ./scripts/local_train.sh para gerar artifacts/
+# Em produção, o Dockerfile baixa automaticamente do GitHub Release
+artifacts/
+!artifacts/.gitkeep
+
+# Test artifacts
+artifacts_test/
 
 # Logs
 logs/

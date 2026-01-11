@@ -1,88 +1,127 @@
-# 🚀 Como Iniciar o Projeto
+# 🚀 Quick Start Guide - Development Setup (estado atual)
 
-## Opção 1: Docker Compose (Recomendado) 🐳
-
-A maneira mais fácil de rodar o projeto completo:
+## 📋 Pré-requisitos
+- Python 3.11+
+```bash
+## 🔧 Setup rápido (Docker)
 
 ```bash
-# Na raiz do projeto
-docker-compose up --build
+# Backend Flask (porta 5001)
+docker run -p 8000:8000 -v $(pwd)/data:/app/data stock-prediction-ml
+
+# Health e modelo
+curl -s http://localhost:5001/health
+curl -s http://localhost:5001/model/info
+
+# Predição (único ticker suportado)
+
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "PETR4.SA"}'
 ```
 
-**Aguarde ~5-10 minutos** na primeira vez (download de imagens + build).
-
-✅ Acesse:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5001
-
-📖 Ver guia completo: [DOCKER_GUIDE.md](DOCKER_GUIDE.md)
-
----
-
-## Opção 2: Desenvolvimento Local
-
-### Backend (API Flask)
-```bash
-# 1. Ativar ambiente virtual
-source venv/Scripts/activate  # Windows
-source venv/bin/activate       # Linux/Mac
-
-# 2. Instalar dependências (se ainda não fez)
-pip install -r requirements.txt
-
-# 3. Iniciar API
-cd src/api
-python main.py
-```
-
-API rodará em: http://localhost:5001
-
-### Frontend (React)
-```bash
-# 1. Instalar dependências (se ainda não fez)
-cd frontend
-npm install
-
-# 2. Iniciar dev server
-npm run dev
-```
-
-Dashboard rodará em: http://localhost:3000
-
----
-
-## Troubleshooting Rápido
-
-### ❌ "Cannot start API"
-**Solução**: Use Docker!
-```bash
-docker-compose up backend
-```
-
-### ❌ "Port 5001 already in use"
-```bash
-# Windows
-netstat -ano | findstr :5001
-taskkill /PID <PID> /F
-
-# Linux/Mac
-lsof -ti:5001 | xargs kill -9
-```
-
-### ❌ "Module not found"
-```bash
-# Backend
-pip install -r requirements.txt
-
-# Frontend
-cd frontend && npm install
+## 🐳 Notas de containerização (estado atual)
+- Dockerfile único (Flask 5001) com PyTorch CPU; copia `configs/` para carregar `production_model.yaml`.
+- docker-compose expõe 5001 e monta `./data` em `/app/data` (MLflow tracking local). Frontend mapeia VITE_API_URL para http://localhost:5001.
+# Compose (recomendado)
+docker-compose up -d
 ```
 
 ---
 
-## Guias Detalhados
+## 🎯 Workflow Recomendado
 
-- 📦 [README.md](README.md) - Visão geral do projeto
-- 🐳 [DOCKER_GUIDE.md](DOCKER_GUIDE.md) - Guia completo Docker
-- 🎨 [frontend/README.md](frontend/README.md) - Frontend específico
-- 🧪 [frontend/TESTING_GUIDE.md](frontend/TESTING_GUIDE.md) - Como testar
+### Desenvolvimento Local
+```bash
+# 1. Setup inicial (1x)
+./scripts/setup_ml.sh
+
+# 2. Durante dev (toda vez que reiniciar)
+./scripts/setup_backend.sh
+
+# 3. Testes
+pytest tests/unit/ -v
+```
+
+### Produção (Docker)
+```bash
+# Build
+docker-compose build
+
+# Deploy
+docker-compose up -d
+
+# Logs
+docker-compose logs -f ml-api
+
+# Stop
+docker-compose down
+```
+
+---
+
+## 📊 Comparação
+
+| Método | Setup | Restart | Portabilidade | CI/CD |
+|--------|-------|---------|---------------|-------|
+| **Scripts bash** | ✅ Rápido | ✅ Muito rápido | ⚠️ Depende de SO | ⚠️ Requer setup |
+| **Docker** | ⚠️ Lento (build) | ✅ Instantâneo | ✅ Total | ✅ Perfeito |
+
+**Recomendação:**
+- **Dev local:** Scripts bash (mais rápido para iterar)
+- **Produção/CI:** Docker (consistência garantida)
+
+---
+
+## 🔑 Dicas Importantes para Containerização
+
+### 1. Multi-stage builds (reduz tamanho)
+```dockerfile
+# Builder stage (descartado no final)
+FROM python:3.13 AS builder
+RUN pip install --user torch mlflow
+
+# Runtime (apenas o necessário)
+FROM python:3.13-slim
+COPY --from=builder /root/.local /root/.local
+```
+
+### 2. Cache de dependências
+```dockerfile
+# Copiar requirements ANTES do código
+COPY requirements-ml.txt .
+RUN pip install -r requirements-ml.txt
+# Código muda mais que deps, cache aproveitado
+COPY . .
+```
+
+### 3. Volumes para dados
+```yaml
+volumes:
+  - ./data/mlflow:/app/data/mlflow  # MLflow tracking persiste
+  - ./artifacts:/app/artifacts      # Fallback models
+```
+
+### 4. .dockerignore
+```
+.venv/
+data/mlflow/
+*.pyc
+__pycache__/
+.git/
+```
+
+---
+
+## ✅ Checklist de Setup
+
+**Scripts criados:**
+- [x] `setup_ml.sh` - Base ML environment
+- [x] `setup_backend.sh` - Inicia API
+- [ ] `setup_frontend.sh` - (se houver React/Vue)
+- [ ] `Dockerfile` - Para containerização
+- [ ] `docker-compose.yml` - Orquestração
+
+**Boa prática confirmada:** ✅ SIM
+- Separação modular
+- Setup rápido no dia-a-dia
+- Pronto para Docker quando necessário

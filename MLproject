@@ -1,0 +1,122 @@
+name: stock-prediction-lstm
+
+python_env: python_env.yaml
+
+entry_points:
+  train:
+    parameters:
+      ticker: {type: str, default: "PETR4.SA"}
+      start_date: {type: str, default: "2020-01-01"}
+      lookback: {type: int, default: 60}
+      train_ratio: {type: float, default: 0.7}
+      val_ratio: {type: float, default: 0.15}
+      test_ratio: {type: float, default: 0.15}
+      hidden_size: {type: int, default: 50}
+      num_layers: {type: int, default: 2}
+      dropout: {type: float, default: 0.2}
+      learning_rate: {type: float, default: 0.001}
+      weight_decay: {type: float, default: 0.0}
+      batch_size: {type: int, default: 32}
+      epochs: {type: int, default: 100}
+      early_stopping_patience: {type: int, default: 10}
+      seed: {type: int, default: 42}
+    command: |
+      python -m cli.main train \
+        --ticker {ticker} \
+        --start-date {start_date} \
+        --lookback {lookback} \
+        --train-ratio {train_ratio} \
+        --val-ratio {val_ratio} \
+        --test-ratio {test_ratio} \
+        --hidden-size {hidden_size} \
+        --num-layers {num_layers} \
+        --dropout {dropout} \
+        --learning-rate {learning_rate} \
+        --weight-decay {weight_decay} \
+        --batch-size {batch_size} \
+        --epochs {epochs} \
+        --early-stopping-patience {early_stopping_patience} \
+        --seed {seed}
+  
+  predict:
+    parameters:
+      ticker: {type: str, default: "PETR4.SA"}
+      model_uri: {type: str, default: "models:/lstm-stock-petr4/Production"}
+      days_ahead: {type: int, default: 5}
+      output_path: {type: str, default: "data/predictions/"}
+    command: |
+      python -c "
+      from src.ml.pipeline.predict_pipeline import PredictPipeline
+      import sys
+      
+      ticker = '{ticker}'
+      model_uri = '{model_uri}'
+      days_ahead = {days_ahead}
+      output_path = '{output_path}'
+      
+      pipeline = PredictPipeline(
+          model_identifier=model_uri,
+          ticker=ticker,
+          use_mlflow=True
+      )
+      
+      predictions = pipeline.predict(
+          days_ahead=days_ahead,
+          output_path=output_path + f'{{ticker}}_predictions.csv'
+      )
+      
+      print(predictions)
+      "
+  
+  tune:
+    parameters:
+      ticker: {type: str, default: "PETR4.SA"}
+      n_trials: {type: int, default: 50}
+      timeout: {type: int, default: 3600}
+      study_name: {type: str, default: "lstm_hyperparameter_tuning"}
+    command: |
+      python -m cli.main tune \
+        --ticker {ticker} \
+        --n-trials {n_trials} \
+        --timeout {timeout} \
+        --study-name {study_name}
+  
+  evaluate:
+    parameters:
+      ticker: {type: str, default: "PETR4.SA"}
+      model_uri: {type: str, default: "models:/lstm-stock-petr4/Production"}
+      test_days: {type: int, default: 30}
+    command: |
+      python -c "
+      from src.ml.pipeline.predict_pipeline import PredictPipeline
+      from src.ml.training.metrics import calculate_all_metrics
+      import pandas as pd
+      import numpy as np
+      
+      ticker = '{ticker}'
+      model_uri = '{model_uri}'
+      test_days = {test_days}
+      
+      # Load model and make predictions
+      pipeline = PredictPipeline(
+          model_identifier=model_uri,
+          ticker=ticker,
+          use_mlflow=True
+      )
+      
+      predictions = pipeline.predict(days_ahead=test_days)
+      
+      # Calculate metrics
+      print('\\n📊 Evaluation Results:')
+      print(predictions.head())
+      print(f'\\nGenerated {len(predictions)} predictions')
+      "
+
+  pipeline:
+    parameters:
+      ticker: {type: str, default: "PETR4.SA"}
+      mode: {type: str, default: "train"}  # train, predict, tune, or full
+    command: |
+      python -m cli.main pipeline \
+        --ticker {ticker} \
+        --mode {mode}

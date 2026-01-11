@@ -27,40 +27,56 @@ API REST em Flask para servir predições de preços de ações utilizando model
 
 ### Tecnologias
 
-- **Framework:** Flask 3.1+
+### Tecnologias (estado atual)
+- **Framework:** Flask 3.x (porta 5001)
 - **CORS:** Flask-CORS
-- **ML:** PyTorch 2.2+ (inferência CPU-only)
+- **ML:** PyTorch 2.2 (CPU-only)
 - **Data Source:** Yahoo Finance (yfinance)
 - **Python:** 3.11+
 
 ### URLs Base
-
+### URLs Base
 - **Desenvolvimento:** `http://localhost:5001`
 - **Produção:** Configurável via variável de ambiente
+- **Produção:** Configurável via variável de ambiente
 
----
-
-## 🏗️ Arquitetura
+  POST /predict                                                 
+  Content-Type: application/json                               
+  Body: {"ticker": "PETR4.SA"}                                     
 
 ### Padrões de Projeto
 
+│    ├─ Campo "ticker" presente? ✓                               
+│    └─ validate_ticker("PETR4.SA")                              
 #### 1. Application Factory Pattern (`main.py`)
 ```python
 def create_app(config=None):
+│ 4. BUSCA DE DADOS (DataService)                                 │
+│    fetch_data("PETR4.SA")                                       │
     app = Flask(__name__)
     # Configuração
     # Registro de blueprints
+│    ├─ Calcula período: hoje - ~120 dias até hoje (para preencher 60 úteis)                 │
+│    ├─ yf.Ticker("PETR4.SA").history(start, end)                    │
     # Handlers de erro
     return app
 ```
 
 **Benefícios:**
+│ 5. FEATURE ENGINEERING (18 colunas)                             │
+│    ├─ OHLCV: Open, High, Low, Close, Volume                    │
+│    ├─ Indicadores: SMA_20, SMA_50, EMA_12, EMA_26, RSI_14, MACD, MACD_signal, MACD_hist, BB_middle, BB_upper, BB_lower, ATR_14, Returns
+│    └─ current_price = último Close                             │
 - Múltiplas instâncias para diferentes ambientes
 - Facilita testes unitários
 - Separação de configuração e inicialização
 
 #### 2. Singleton Pattern (`ModelService`)
 ```python
+│ 6. NORMALIZAÇÃO                                                 │
+│    ModelService.get_scaler()                                    │
+│    ├─ MinMaxScaler range [0, 1]                                │
+│    └─ scaled_data = scaler.transform(features[18 col])        │
 class ModelService:
     _instance = None
     
@@ -68,6 +84,12 @@ class ModelService:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
+│ 7. CONVERSÃO PARA TENSOR                                        │
+│    X = torch.FloatTensor(scaled_data[-60:]).unsqueeze(0)      │
+│    Shape: [1, 60, 18]                                           │
+│    ├─ batch_size: 1                                            │
+│    ├─ sequence_length: 60                                      │
+│    └─ features: 18                                             │
 ```
 
 **Benefícios:**
@@ -76,6 +98,13 @@ class ModelService:
 - Aumenta performance significativamente
 
 #### 3. Blueprint Pattern (Rotas)
+│ 8. INFERÊNCIA DO MODELO                                         │
+│    ModelService.get_model()                                     │
+│    with torch.no_grad():                                        │
+│        prediction_scaled = model(X)                             │
+│    ├─ LSTM processa sequência                                  │
+│    └─ Linear layer gera predição                               │
+│        → Tensor [batch, 1] (normalizado)                       │
 ```python
 health_bp = Blueprint('health', __name__)
 model_info_bp = Blueprint('model_info', __name__)

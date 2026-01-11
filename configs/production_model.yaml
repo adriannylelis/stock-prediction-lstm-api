@@ -1,0 +1,9 @@
+deployed_at: '2026-01-10T01:20:21.464360'
+deployed_by: manual_promotion
+model_uri: models:/stock-lstm-model/Production
+reason: Promovido para Production (versão 2) para evitar subestimação das previsões
+rollback: false
+rollback_from: null
+stage: Production
+tracking_uri: file:C:\FIAP\tech-challenges\stock-prediction-lstm-api/data/mlflow/tracking
+version: Production

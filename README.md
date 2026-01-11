@@ -1,98 +1,126 @@
-# Stock Prediction LSTM API 📈
+# 🚀 Stock Prediction LSTM API - PETR4.SA
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch 2.2+](https://img.shields.io/badge/PyTorch-2.2+-ee4c2c.svg)](https://pytorch.org/)
-[![Flask 3.1+](https://img.shields.io/badge/Flask-3.1+-000000.svg)](https://flask.palletsprojects.com/)
-[![Tests](https://img.shields.io/badge/tests-92%20passing-brightgreen.svg)](tests/)
-[![Coverage](https://img.shields.io/badge/coverage-72.79%25-yellow.svg)](tests/)
-[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+**Previsão de preços de ações usando LSTM + Deploy automatizado na Google Cloud Platform**
 
-Sistema completo de **ML Engineering** para previsão de preços de ações usando LSTM (Long Short-Term Memory), com foco em boas práticas de engenharia, monitoramento, versionamento e qualidade de código.
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.2.2-red.svg)](https://pytorch.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.0-green.svg)](https://flask.palletsprojects.com/)
+[![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
+[![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Platform-yellow.svg)](https://cloud.google.com/)
+
+API REST completa para previsão de preços de ações brasileiras usando **LSTM**, com foco em **PETR4.SA (Petrobras)**. Inclui frontend web, treino automatizado via GitHub Actions e deploy na Google Cloud Platform.
+
+---
 
 ---
 
 ## 📋 Índice
 
-- [Visão Geral](#-visão-geral)
-- [Arquitetura](#-arquitetura)
-- [Funcionalidades](#-funcionalidades)
-- [Instalação](#-instalação)
-- [Guia de Uso](#-guia-de-uso)
-- [CLI Commands](#-cli-commands)
-- [API REST](#-api-rest)
-- [Testes](#-testes)
-- [Documentação](#-documentação)
-- [Tecnologias](#-tecnologias)
+- [⚡ Quick Start](#-quick-start)
+- [🎯 Visão Geral](#-visão-geral)
+- [🏗️ Arquitetura](#️-arquitetura)
+- [💰 Custos](#-custos)
+- [📚 Documentação](#-documentação)
+- [🧪 Testes](#-testes)
+- [🤝 Contribuindo](#-contribuindo)
+
+---
+
+## ⚡ Quick Start
+
+### **1. Treino Local**
+
+```bash
+# Clone e configure
+git clone https://github.com/adriannylelis/stock-prediction-lstm-api.git
+cd stock-prediction-lstm-api
+python3.11 -m venv venv && source venv/bin/activate
+
+# Instalar dependências
+pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+pip install "numpy<2.0" -r requirements.txt
+
+# Treinar modelo (PETR4.SA)
+./scripts/local_train.sh
+```
+
+### **2. Testar Localmente**
+
+```bash
+# Opção A: Docker (recomendado)
+docker-compose up backend
+
+# Opção B: Python direto
+python -m flask --app src.api.main:create_app run --port 5001
+```
+
+**Testar:**
+```bash
+# Health check
+curl http://localhost:5001/health
+
+# Predição
+curl -X POST http://localhost:5001/predict \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "PETR4.SA", "periods": 7}'
+```
+
+### **3. Deploy na Google Cloud**
+
+```bash
+# Setup automático (10 minutos)
+./scripts/setup_gcloud.sh
+
+# Configurar GitHub Secrets (GCP_PROJECT_ID, GCP_SA_KEY)
+# Depois: GitHub Actions → Train Model Weekly → Run workflow
+```
+
+📖 **Guia completo:** [GCLOUD_DEPLOY.md](docs/GCLOUD_DEPLOY.md)
 
 ---
 
 ## 🎯 Visão Geral
 
-Este projeto implementa uma solução end-to-end para previsão de preços de ações:
+Sistema completo de **previsão de preços de ações** com **LSTM** e arquitetura **MLOps moderna**:
 
-- ✅ **Pipeline de Dados**: Ingestão automática (Yahoo Finance), feature engineering (14 indicadores técnicos)
-- ✅ **Modelo LSTM**: PyTorch multi-camadas com dropout, early stopping
-- ✅ **Treinamento**: MLflow tracking, Optuna tuning, métricas completas (MAE, RMSE, MAPE, R², Directional Accuracy)
-- ✅ **Monitoramento**: Drift detection (KS-test, PSI), data versioning, artifact management
-- ✅ **CLI**: 5 comandos (train, predict, tune, drift, pipeline)
-- ✅ **API REST**: Flask API com 3 endpoints (health, model/info, predict), tratamento de erros HTTP robusto
-- ✅ **Qualidade**: 92 testes (100% passando), 72.79% coverage, Ruff linter
+### **Features:**
+- ✅ **Backend API** (Flask + PyTorch)
+- ✅ **Frontend Web** (React + Vite + TailwindCSS)
+- ✅ **Treino automatizado semanal** (GitHub Actions)
+- ✅ **Deploy automatizado** na Google Cloud Platform
+- ✅ **Versionamento de modelos** via GitHub Releases
+- ✅ **Single ticker:** PETR4.SA (Petrobras)
+- ✅ **18 features técnicas** (OHLCV + indicadores)
+- ✅ **LSTM:** 100 hidden units, 3 layers, dropout 0.3
+- ✅ **Testes:** 63 testes automatizados (92% passing)
+
+### **Fluxo MLOps:**
+
+```
+GitHub Actions (Treino Semanal)
+        ↓
+   GitHub Release (artifacts.zip)
+        ↓
+GitHub Actions (Deploy)
+        ↓
+   Google Cloud Platform
+   ├─ Cloud Run: Frontend (React + Nginx)
+   └─ Cloud Run: Backend (Flask + LSTM)
+```
 
 ---
 
 ## 🏗️ Arquitetura
-
 ```
-stock-prediction-lstm-api/
-├── src/ml/                      # Core ML components
-│   ├── data/                    # Data pipeline
-│   │   ├── ingestion.py         # Yahoo Finance integration
-│   │   ├── feature_engineering.py  # Technical indicators (SMA, RSI, MACD, etc.)
-│   │   └── preprocessing.py     # Normalization & sequences
-│   ├── models/
-│   │   └── lstm.py              # PyTorch LSTM model
-│   ├── training/
-│   │   ├── trainer.py           # Training loop & checkpoints
-│   │   ├── early_stopping.py    # Callback
-│   │   ├── metrics.py           # Evaluation metrics
-│   │   ├── hyperparameter_tuner.py  # Optuna
-│   │   └── experiment_tracker.py    # MLflow
-│   ├── pipeline/
-│   │   ├── train_pipeline.py    # End-to-end training
-│   │   └── predict_pipeline.py  # End-to-end prediction
-│   ├── monitoring/
-│   │   └── drift_detector.py    # Drift detection (KS-test, PSI)
-│   └── utils/
-│       ├── persistence.py       # Data versioning & artifacts
-│       ├── device.py            # CPU/GPU management
-│       ├── logging.py           # Structured logging
-│       └── seed.py              # Reproducibility
-├── cli/
-│   └── main.py                  # CLI interface (5 commands)
-├── src/api/                     # REST API (Flask)
-│   ├── main.py                  # Application factory
-│   ├── routes/                  # API endpoints
-│   │   ├── health.py            # GET /health
-│   │   ├── model_info.py        # GET /model/info
-│   │   └── prediction.py        # POST /predict
-│   ├── services/                # Business logic
-│   │   ├── model_service.py     # Model loading (singleton)
-│   │   ├── data_service.py      # Data fetching (yfinance)
-│   │   └── predict_service.py   # Prediction pipeline
-│   ├── models/
-│   │   └── lstm_model.py        # LSTM model class
-│   └── utils/
-│       └── validators.py        # Input validation
-├── tests/                       # 83 tests (100% passing)
-│   ├── integration/             # 8 integration tests
-│   ├── unit/                    # 75+ unit tests
-│   └── test_*.py
-├── notebooks/
+
+**Modelo em produção:** models:/stock-lstm-model/Production (v2, val_loss ≈ 0.00101), 18 features, lookback 60, ticker único PETR4.SA. Tracking local em `data/mlflow/tracking` (montado via docker-compose).
 │   └── eda.ipynb                # Exploratory analysis
-├── artifacts/                   # Models, scalers, configs
-├── data/                        # Raw & processed data
-├── models/                      # Trained models
-└── docs/                        # Documentation
+├── docs/                        # Documentação
+│   ├── TESTING_PLAN.md              # Plano de testes
+│   └── QUICK_START.md               # Guia rápido
+├── requirements.txt             # PyTorch, MLflow, Flask, yfinance
+├── requirements-dev.txt         # pytest, ruff, ipython
+└── pyproject.toml               # Project configuration
 ```
 
 ---
@@ -119,191 +147,171 @@ stock-prediction-lstm-api/
 2. Feature Engineering → Add technical indicators
 3. Preprocessing → Normalize & create sequences
 4. Training → Train LSTM with validation
-5. Evaluation → Calculate test metrics
+### **Estrutura de Pastas:**
 
-**PredictPipeline** (4 etapas):
-1. Data Ingestion → Download latest 2 years
-2. Feature Engineering → Add indicators
-3. Preprocessing → Prepare last sequence
-4. Prediction → Multi-step forecasting
+```
+stock-prediction-lstm-api/
+├── .github/workflows/
+│   ├── train-weekly.yml       # Treino semanal automatizado
+│   └── deploy-gcloud.yml      # Deploy GCloud (Frontend + Backend)
+│
+├── src/
+│   ├── api/                   # Flask API
+│   │   ├── routes/            # Endpoints (/health, /predict, /model-info)
+│   │   └── services/          # Lógica de negócio
+│   └── ml/                    # Pipeline de ML
+│       ├── data/              # Ingestão + Feature Engineering
+│       ├── training/          # Treino LSTM + MLflow
+│       └── pipeline/          # Train/Predict pipelines
+│
+├── frontend/                  # React + Vite
+│   ├── src/components/        # UI Components
+│   └── Dockerfile             # Multi-stage build
+│
+├── cli/                       # CLI para treino local
+├── scripts/                   # Scripts de automação
+├── docs/                      # Documentação completa
+│
+├── Dockerfile                 # Backend container
+└── docker-compose.yml         # Dev local (Frontend + Backend)
+```
 
-### **Monitoramento & Versionamento**
-- Drift detection (Kolmogorov-Smirnov test, PSI)
-- Data versioning com timestamps
-- Artifact management (models, scalers, configs)
-- Auto-cleanup de versões antigas
+### **Componentes Principais:**
 
-### **API REST**
-- Flask Application Factory Pattern
-- CORS habilitado para integração frontend
-- 3 endpoints: health check, model info, predictions
-- Singleton pattern para carregamento de modelo
-- Validação de entrada e tratamento de erros
-- Logging estruturado
+**Backend (Flask + PyTorch):**
+- Endpoints: `/health`, `/model-info`, `/predict`
+- Modelo: LSTM (100 hidden, 3 layers, dropout 0.3)
+- Features: 18 indicadores técnicos
+- Normalização: MinMaxScaler
+
+**Frontend (React):**
+- Dashboard interativo
+- Gráficos (Recharts)
+- UI moderna (TailwindCSS + shadcn/ui)
+- Integração com API via Axios
+
+**MLOps Pipeline:**
+- Treino: GitHub Actions (semanal, domingo 00:00 UTC)
+- Artifacts: GitHub Releases (versionados)
+- Deploy: Cloud Build + Cloud Run
+- Monitoramento: Cloud Run Logs + Metrics
 
 ---
 
-## 🚀 Quick Start
+## 💰 Custos
 
-### **🐳 Opção 1: Docker (Recomendado)**
+### **Google Cloud Platform**
 
-A forma mais rápida de iniciar o projeto completo (backend + frontend):
+| Serviço | Free Tier | Uso Estimado | Custo/mês |
+|---------|-----------|--------------|-----------|
+| Cloud Run Backend | 2M requests | 100k requests | $3-5 |
+| Cloud Run Frontend | Incluído | 100k requests | $1-2 |
+| Cloud Build | 120 min/dia | 80 min/mês | $0 |
+| Container Registry | 0.5GB | 1GB | $0.02 |
+| **Total** | | | **$4-8/mês** |
 
-```bash
-# 1. Clone o repositório
-git clone https://github.com/adriannylelis/stock-prediction-lstm-api.git
-cd stock-prediction-lstm-api
+### **GitHub Actions**
+- ✅ **100% Grátis** (2000 min/mês - uso ~100 min/mês)
 
-# 2. Inicie os containers
-docker-compose up --build
-
-# 3. Acesse as aplicações
-# Frontend: http://localhost:3000
-# Backend API: http://localhost:5001/health
-```
-
-**O que está rodando:**
-- ✅ **Frontend**: React dashboard em http://localhost:3000
-- ✅ **Backend**: Flask API em http://localhost:5001
-- ✅ **Healthchecks**: Automáticos para ambos containers
-- ✅ **Network**: Comunicação interna entre serviços
-
-**Comandos úteis:**
-```bash
-# Ver logs em tempo real
-docker-compose logs -f
-
-# Ver logs só do frontend
-docker-compose logs -f frontend
-
-# Ver logs só do backend
-docker-compose logs -f backend
-
-# Parar containers
-docker-compose down
-
-# Parar e remover volumes
-docker-compose down -v
-```
+**Alternativas de baixo custo:** Veja [docs/alternatives/](docs/alternatives/) para opções em Render, Railway e outros.
 
 ---
 
-### **💻 Opção 2: Desenvolvimento Local**
+## 📚 Documentação
 
-#### **Backend (API)**
+### **Deploy & Setup:**
+- 📖 **[Guia de Deploy Google Cloud](docs/GCLOUD_DEPLOY.md)** ⭐ PRINCIPAL
+- ⚡ [Quick Start 5 Min](docs/QUICK_START_5MIN.md)
+- 🔧 [Setup Script GCloud](scripts/setup_gcloud.sh)
 
-**Pré-requisitos:**
-- Python 3.11+
-- pip ou uv
+### **Arquitetura:**
+- 🏗️ [Arquitetura MLOps](docs/ARCHITECTURE_MLOPS.md)
+- 📊 [Diagrama Visual](ARCHITECTURE_DIAGRAM.txt)
+- 📝 [Resumo de Implementação](IMPLEMENTATION_SUMMARY.md)
+- 📄 [Relatório Técnico do Projeto](RELATORIO_PROJETO.md)
 
-**Setup:**
+### **API & Frontend:**
+- 🔌 [API Documentation](docs/API_DOCUMENTATION.md)
+- 🎨 [Frontend Testing Guide](frontend/TESTING_GUIDE.md)
+- 📡 [CLI Documentation](docs/CLI_DOCUMENTATION.md)
+
+### **Desenvolvimento:**
+- 🐳 [Docker Guide](docs/DOCKER_GUIDE.md)
+- 🧪 [Como Rodar Testes](docs/RUN_TESTS.md)
+- 🤖 [ML Documentation](docs/ML_DOCUMENTATION.md)
+
+### **Alternativas:**
+- 💡 [Deploy Render/Railway](docs/alternatives/DEPLOY_FREE_TIER.md)
+
+---
+
+## 🧪 Testes
+
+**Status:** 63 testes automatizados (92% passing)
+
 ```bash
-# 1. Clone o repositório
-git clone https://github.com/adriannylelis/stock-prediction-lstm-api.git
-cd stock-prediction-lstm-api
+# Todos os testes
+pytest
 
-# 2. Crie ambiente virtual
-python -m venv venv
+# Apenas unit tests
+pytest tests/unit/
 
-# Windows
-venv\Scripts\activate
+# Apenas integration tests
+pytest tests/integration/
 
-# Linux/Mac
-source venv/bin/activate
+# E2E tests
+pytest tests/e2e/
 
-# 3. Instale dependências
+# Com coverage
+pytest --cov=src tests/
+```
+
+**Cobertura:**
+- Unit: 53/53 ✓ (100%)
+- Integration: 5/6 ✓ (83%)
+- E2E: 5/7 ✓ (71%)
+
+---
+
+## 🤝 Contribuindo
+
+1. Fork o projeto
+2. Crie uma branch (`git checkout -b feature/nova-feature`)
+3. Commit suas mudanças (`git commit -m 'Adiciona nova feature'`)
+4. Push para a branch (`git push origin feature/nova-feature`)
+5. Abra um Pull Request
+
+---
+
+## 📄 Licença
+
+MIT License - Veja [LICENSE](LICENSE) para detalhes.
+
+---
+
+## 🙏 Agradecimentos
+
+- **Yahoo Finance** (yfinance) - Dados históricos
+- **PyTorch** - Framework de Deep Learning
+- **Flask** - Framework Web
+- **React** - Framework Frontend
+- **Google Cloud Platform** - Infraestrutura
+
+---
+
+**Desenvolvido com ❤️ para análise de ações brasileiras**
+
+⭐ **Se este projeto foi útil, considere dar uma estrela no GitHub!**
+
+
+# Dependências principais
 pip install -r requirements.txt
 
-# 4. Execute a API
-python -m src.api.main
+# Ferramentas de desenvolvimento (pytest, ruff, ipython)
+pip install -r requirements-dev.txt
 
-# API disponível em http://localhost:5001
-```
-
-**Scripts automatizados (alternativa):**
-
-Linux/Mac:
-```bash
-chmod +x setup.sh
-./setup.sh
-```
-
-Windows:
-```powershell
-.\setup.ps1
-```
-
-#### **Frontend (React Dashboard)**
-
-**Pré-requisitos:**
-- Node.js 18+
-- npm ou yarn
-
-**Setup:**
-```bash
-# 1. Entre na pasta do frontend
-cd frontend
-
-# 2. Instale dependências
-npm install
-
-# 3. Configure variável de ambiente (opcional)
-# Crie arquivo .env com:
-VITE_API_URL=http://localhost:5001
-
-# 4. Inicie o servidor de desenvolvimento
-npm run dev
-
-# Frontend disponível em http://localhost:5173
-```
-
-**Build para produção:**
-```bash
-npm run build
-npm run preview  # Testa build localmente
-```
-
----
-
-## 📦 Instalação Completa (Manual)
-
-Se preferir configurar tudo manualmente:
-
-#### **1. Clone o Repositório**
-```bash
-git clone https://github.com/adriannylelis/stock-prediction-lstm-api.git
-cd stock-prediction-lstm-api
-```
-
-#### **2. Crie o Ambiente Virtual (Backend)**
-```bash
-# Com venv
-python -m venv venv
-
-# Ativar no Windows
-venv\Scripts\activate
-
-# Ativar no Linux/Mac
-source venv/bin/activate
-
-# Ou com uv (recomendado)
-uv venv
-uv sync
-```
-
-#### **3. Instale as Dependências**
-```bash
-# Com pip
+# Instalar projeto em modo editable
 pip install -e .
-
-# Ou com uv
-uv pip install -e .
-
-# Dependências de desenvolvimento (opcional)
-pip install -e ".[dev]"
-
-# API REST (opcional)
-pip install -e ".[api]"
 ```
 
 #### **4. Setup Frontend**
@@ -326,7 +334,65 @@ stock-predict --help
 
 ---
 
-## 📖 Guia de Uso
+## � MLflow Tracking & Model Registry
+
+O projeto usa **MLflow** como fonte da verdade para modelos, métricas e experimentos.
+
+### **Iniciar MLflow UI**
+
+```powershell
+# Windows PowerShell (recomendado)
+.\scripts\init_mlflow.ps1
+
+# Linux/Mac
+chmod +x scripts/init_mlflow.sh
+./scripts/init_mlflow.sh
+
+# Python (alternativa)
+python -m mlflow_config
+
+# Comando direto (funciona em qualquer plataforma)
+$env:MLFLOW_TRACKING_URI="file:data/mlflow/tracking"; mlflow ui --port 5001 --backend-store-uri "file:data/mlflow/tracking"
+```
+
+Acesse: **http://127.0.0.1:5001**
+
+### **Estrutura de Dados MLflow**
+
+```
+data/
+├── mlflow/
+│   └── tracking/           # 📦 MLflow tracking store (SQLITE)
+│       ├── 0/              # Experimento Default
+│       ├── 941569.../      # Experimento lstm-multi-ticker
+│       │   ├── meta.yaml
+│       │   ├── 9116f4c9.../   # Run 1
+│       │   │   ├── artifacts/
+│       │   │   │   ├── model/
+│       │   │   │   ├── scaler.pkl
+│       │   │   │   └── config.yaml
+│       │   │   ├── metrics/
+│       │   │   ├── params/
+│       │   │   └── tags/
+│       │   └── f7133de2.../   # Run 2
+│       └── models/            # Model Registry
+│           └── stock-lstm-model/
+│               ├── version-1/
+│               └── version-2/
+```
+
+### **Tracking URI**
+
+O projeto está configurado para usar:
+```
+MLFLOW_TRACKING_URI = file:data/mlflow/tracking
+```
+
+Todos os componentes (CLI, API, pipelines) usam automaticamente esse URI.
+
+---
+
+## �📖 Guia de Uso
 
 ### **🖥️ Dashboard Web (Interface Gráfica)**
 
@@ -623,10 +689,15 @@ Exemplo:
 ### **Iniciar o Servidor**
 
 ```bash
-# Desenvolvimento (com hot reload)
-PYTHONPATH=$PWD python src/api/main.py
+# Usando script automatizado (recomendado)
+./scripts/init_backend.sh
 
-# Servidor roda em http://localhost:5001
+# Ou manualmente
+export FLASK_APP=src.api.main:create_app
+export FLASK_ENV=development
+flask run --host=0.0.0.0 --port=5000 --reload
+
+# Servidor roda em http://localhost:5000
 ```
 
 ---

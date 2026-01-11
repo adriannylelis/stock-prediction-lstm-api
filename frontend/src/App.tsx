@@ -11,7 +11,7 @@ import { useStocks } from './hooks/useStocks';
 import { TrendingUp } from 'lucide-react';
 
 function App() {
-  const [selectedStock, setSelectedStock] = useState('');
+  const [selectedStock, setSelectedStock] = useState('PETR4.SA');
   const { prediction, loading, error, predict } = usePrediction();
   const { stocks, loading: loadingStocks, error: stocksError } = useStocks();
 
@@ -47,7 +47,7 @@ function App() {
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1">
                 <label className="text-xs sm:text-sm font-medium mb-2 block">
-                  Ticker da Ação
+                  Ticker da Ação (único disponível: PETR4.SA)
                 </label>
                 {loadingStocks ? (
                   <div className="h-10 bg-muted animate-pulse rounded-md"></div>
