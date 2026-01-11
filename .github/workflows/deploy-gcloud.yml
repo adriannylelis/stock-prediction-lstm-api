@@ -71,6 +71,15 @@ jobs:
           echo "📌 Latest release: $RELEASE_TAG"
           echo "📥 Download URL: $DOWNLOAD_URL"
           
+          # Validate download URL
+          if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
+            echo "❌ No assets found in the latest release '$RELEASE_TAG'."
+            echo "⚠️ Please ensure a release with model artifacts exists."
+            echo "Skipping artifact download - deployment will continue without latest artifacts."
+            mkdir -p artifacts
+            exit 0
+          fi
+          
           # Download artifacts
           curl -L -o artifacts.zip "$DOWNLOAD_URL"
           
