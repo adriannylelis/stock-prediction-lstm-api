@@ -48,31 +48,45 @@ RUN if [ "$DOWNLOAD_ARTIFACTS" = "true" ] && [ ! -f "artifacts/model.pt" ]; then
         echo "📥 Downloading artifacts from GitHub Release..."; \
         REPO="${GITHUB_REPO:-adriannylelis/stock-prediction-lstm-api}"; \
         echo "📦 Repository: $REPO"; \
-        LATEST_RELEASE=$(curl -s "https://api.github.com/repos/$REPO/releases/latest"); \
         \
-        # Verificar se a resposta da API é válida \
-        if [ -z "$LATEST_RELEASE" ] || echo "$LATEST_RELEASE" | grep -q "Not Found"; then \
+        # Baixar resposta da API em arquivo temporário \
+        curl -s "https://api.github.com/repos/$REPO/releases/latest" > /tmp/release.json; \
+        \
+        # Verificar se é JSON válido \
+        if ! jq empty /tmp/release.json 2>/dev/null; then \
+            echo "❌ GitHub API returned invalid JSON (possibly rate limited or 404)"; \
+            echo "📄 Response preview:"; \
+            head -n 5 /tmp/release.json; \
+            echo "⚠️  Continuing without artifacts (will need to be added manually)"; \
+            mkdir -p artifacts/models/scalers; \
+            rm -f /tmp/release.json; \
+            exit 0; \
+        fi; \
+        \
+        # Verificar se encontrou release \
+        MESSAGE=$(jq -r '.message // empty' /tmp/release.json); \
+        if [ "$MESSAGE" = "Not Found" ]; then \
             echo "❌ No releases found in repository."; \
             echo "⚠️  Please create a release first by running the training workflow."; \
-            echo "📦 Creating empty artifacts directory for now..."; \
             mkdir -p artifacts/models/scalers; \
+            rm -f /tmp/release.json; \
             exit 0; \
         fi; \
         \
         # Verificar se há assets no release \
-        RELEASE_TAG=$(echo "$LATEST_RELEASE" | jq -r '.tag_name'); \
-        ASSET_COUNT=$(echo "$LATEST_RELEASE" | jq '.assets | length'); \
+        RELEASE_TAG=$(jq -r '.tag_name' /tmp/release.json); \
+        ASSET_COUNT=$(jq '.assets | length' /tmp/release.json); \
         \
-        if [ "$ASSET_COUNT" -eq 0 ] || [ "$ASSET_COUNT" = "null" ]; then \
+        if [ "$ASSET_COUNT" -eq 0 ]; then \
             echo "❌ No assets found in latest release '$RELEASE_TAG'."; \
             echo "⚠️  Please ensure the training workflow completed successfully."; \
-            echo "📦 Creating empty artifacts directory for now..."; \
             mkdir -p artifacts/models/scalers; \
+            rm -f /tmp/release.json; \
             exit 0; \
         fi; \
         \
         # Baixar artifacts \
-        DOWNLOAD_URL=$(echo "$LATEST_RELEASE" | jq -r '.assets[0].browser_download_url'); \
+        DOWNLOAD_URL=$(jq -r '.assets[0].browser_download_url' /tmp/release.json); \
         echo "📌 Latest release: $RELEASE_TAG"; \
         echo "📥 Downloading from: $DOWNLOAD_URL"; \
         \
@@ -82,6 +96,7 @@ RUN if [ "$DOWNLOAD_ARTIFACTS" = "true" ] && [ ! -f "artifacts/model.pt" ]; then
         rm artifacts.zip && \
         echo "✅ Artifacts downloaded successfully"; \
         ls -lah artifacts/models/; \
+        rm -f /tmp/release.json; \
     else \
         echo "📦 Using local artifacts (dev mode)"; \
         mkdir -p artifacts/models/scalers; \
