@@ -63,14 +63,15 @@ jobs:
         run: |
           echo "📂 Checking artifacts folder..."
           ls -lah artifacts/
+          ls -lah artifacts/models/ || true
           
-          # Verificar arquivos obrigatórios
-          if [ ! -f "artifacts/model.pt" ]; then
-            echo "❌ ERROR: model.pt not found!"
+          # Verificar arquivos obrigatórios (novos paths)
+          if [ ! -f "artifacts/models/best_model.pt" ]; then
+            echo "❌ ERROR: best_model.pt not found!"
             exit 1
           fi
           
-          if [ ! -f "artifacts/scaler.pkl" ]; then
+          if [ ! -f "artifacts/models/scalers/scaler.pkl" ]; then
             echo "❌ ERROR: scaler.pkl not found!"
             exit 1
           fi
@@ -79,14 +80,15 @@ jobs:
           
           # Mostrar tamanho dos arquivos
           echo "📊 Artifact sizes:"
-          du -h artifacts/*
+          du -h artifacts/models/best_model.pt
+          du -h artifacts/models/scalers/scaler.pkl
       
       # ==================== PACKAGE ====================
       - name: 📦 Package artifacts
         run: |
-          cd artifacts
-          zip -r ../artifacts.zip ./*
-          cd ..
+          cd artifacts/models
+          zip -r ../../artifacts.zip ./*
+          cd ../..
           
           echo "📊 Package size:"
           ls -lh artifacts.zip
@@ -124,9 +126,9 @@ jobs:
             - Features: OHLCV + Technical Indicators
             
             **Artifacts Included:**
-            - ✅ `model.pt` - Trained PyTorch model
-            - ✅ `scaler.pkl` - MinMaxScaler for features
-            - ✅ `y_scaler.pkl` - Scaler for target (if exists)
+            - ✅ `best_model.pt` - Trained PyTorch model
+            - ✅ `scalers/scaler.pkl` - MinMaxScaler for features (18 features)
+            - ✅ `scalers/preprocessing_config.json` - Preprocessing configuration
             - ✅ `metrics.json` - Training metrics (if exists)
             
             **Usage:**
@@ -135,7 +137,7 @@ jobs:
             wget https://github.com/${{ github.repository }}/releases/download/v1.0.${{ github.run_number }}/artifacts.zip
             
             # Unzip
-            unzip artifacts.zip -d artifacts/
+            unzip artifacts.zip -d artifacts/models/
             
             # Run API
             docker-compose up backend
