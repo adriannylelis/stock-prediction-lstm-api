@@ -1,0 +1,161 @@
+name: 🤖 Train Model Weekly
+
+on:
+  # Executa todo domingo às 00:00 UTC (21:00 sábado Brasília)
+  schedule:
+    - cron: '0 0 * * 0'
+  
+  # Permite execução manual pelo GitHub UI
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: 'Stock ticker to train (default: PETR4.SA)'
+        required: false
+        default: 'PETR4.SA'
+      epochs:
+        description: 'Number of epochs (default: 100)'
+        required: false
+        default: '100'
+
+jobs:
+  train-and-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30  # Single ticker treina em ~10min
+    
+    steps:
+      # ==================== SETUP ====================
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      # ==================== DEPENDENCIES ====================
+      - name: 🔧 Install PyTorch CPU (optimized)
+        run: |
+          pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+          pip install "numpy<2.0"
+      
+      - name: 📦 Install dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      # ==================== TRAINING ====================
+      - name: 🎯 Train LSTM Model - PETR4.SA
+        run: |
+          python -m cli train \
+            --ticker ${{ github.event.inputs.ticker || 'PETR4.SA' }} \
+            --start-date 2020-01-01 \
+            --epochs ${{ github.event.inputs.epochs || '100' }} \
+            --batch-size 64 \
+            --hidden-size 100 \
+            --num-layers 3 \
+            --dropout 0.3 \
+            --lr 0.001
+      
+      # ==================== VALIDATION ====================
+      - name: ✅ Validate artifacts
+        run: |
+          echo "📂 Checking artifacts folder..."
+          ls -lah artifacts/
+          
+          # Verificar arquivos obrigatórios
+          if [ ! -f "artifacts/model.pt" ]; then
+            echo "❌ ERROR: model.pt not found!"
+            exit 1
+          fi
+          
+          if [ ! -f "artifacts/scaler.pkl" ]; then
+            echo "❌ ERROR: scaler.pkl not found!"
+            exit 1
+          fi
+          
+          echo "✅ All required artifacts present"
+          
+          # Mostrar tamanho dos arquivos
+          echo "📊 Artifact sizes:"
+          du -h artifacts/*
+      
+      # ==================== PACKAGE ====================
+      - name: 📦 Package artifacts
+        run: |
+          cd artifacts
+          zip -r ../artifacts.zip ./*
+          cd ..
+          
+          echo "📊 Package size:"
+          ls -lh artifacts.zip
+      
+      # ==================== RELEASE ====================
+      - name: 🚀 Create GitHub Release
+        id: create_release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v1.0.${{ github.run_number }}
+          name: "Model Release v1.0.${{ github.run_number }} - PETR4.SA"
+          artifacts: "artifacts.zip"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            ## 🤖 Automated Model Training
+            
+            **Training Details:**
+            - 📈 **Ticker:** PETR4.SA (Petrobras)
+            - 📅 **Trained at:** ${{ github.event.repository.updated_at }}
+            - 🔢 **Run Number:** #${{ github.run_number }}
+            - ⏱️ **Duration:** ${{ job.status }}
+            
+            **Model Configuration:**
+            - Architecture: LSTM
+            - Hidden Size: 100
+            - Num Layers: 3
+            - Dropout: 0.3
+            - Epochs: ${{ github.event.inputs.epochs || '100' }}
+            - Batch Size: 64
+            - Learning Rate: 0.001
+            
+            **Data:**
+            - Start Date: 2020-01-01
+            - Sequence Length: 60 days
+            - Features: OHLCV + Technical Indicators
+            
+            **Artifacts Included:**
+            - ✅ `model.pt` - Trained PyTorch model
+            - ✅ `scaler.pkl` - MinMaxScaler for features
+            - ✅ `y_scaler.pkl` - Scaler for target (if exists)
+            - ✅ `metrics.json` - Training metrics (if exists)
+            
+            **Usage:**
+            ```bash
+            # Download artifacts
+            wget https://github.com/${{ github.repository }}/releases/download/v1.0.${{ github.run_number }}/artifacts.zip
+            
+            # Unzip
+            unzip artifacts.zip -d artifacts/
+            
+            # Run API
+            docker-compose up backend
+            ```
+            
+            ---
+            🤖 *This release was automatically created by GitHub Actions*
+      
+      # ==================== NOTIFICATION ====================
+      - name: 📢 Job Summary
+        if: always()
+        run: |
+          echo "# 🎯 Training Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Ticker:** PETR4.SA" >> $GITHUB_STEP_SUMMARY
+          echo "**Release:** v1.0.${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "artifacts/metrics.json" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## 📊 Metrics" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat artifacts/metrics.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi

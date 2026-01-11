@@ -351,15 +351,24 @@ class ModelService:
             return False
 
     def _load_artifacts(self):
-        """Load model artifacts from MLflow using stage-based approach.
+        """Load model artifacts - Priority: Local > MLflow.
         
         Priority:
-        1. Production stage from MLflow
-        2. Staging stage from MLflow
-        3. Latest version from MLflow
-        4. Local artifacts (fallback)
+        1. Local artifacts (Docker/production mode)
+        2. Production stage from MLflow
+        3. Staging stage from MLflow
+        4. Latest version from MLflow
         """
         try:
+            # Priority 1: Try local artifacts first
+            logger.info("🎯 Attempting to load from local artifacts...")
+            if self._load_from_local_artifacts():
+                logger.success("✅ Loaded from local artifacts")
+                return
+
+            # Priority 2-4: MLflow
+            logger.warning("⚠️ Local artifacts not available, trying MLflow...")
+            
             # Configure MLflow tracking URI
             tracking_uri = "file:data/mlflow/tracking"  # Default
             if self.production_config_path.exists():
@@ -373,34 +382,33 @@ class ModelService:
             mlflow.set_tracking_uri(tracking_uri)
             logger.info(f"📍 MLflow tracking URI: {tracking_uri}")
 
-            # Try to load from MLflow using stage-based approach
             model_name = "stock-lstm-model"
             loaded = False
 
-            # Priority 1: Production stage
+            # Try Production stage
             try:
                 model_uri = f"models:/{model_name}/Production"
-                logger.info(f"🎯 Attempting to load Production model: {model_uri}")
+                logger.info(f"🎯 Attempting Production: {model_uri}")
                 if self._load_from_mlflow(model_uri, skip_tracking_uri=True):
-                    logger.success("✅ Loaded model from Production stage")
+                    logger.success("✅ Loaded from Production stage")
                     self._update_production_config(model_uri, "Production")
                     loaded = True
             except Exception as e:
-                logger.info(f"No model in Production stage: {e}")
+                logger.info(f"No Production model: {e}")
 
-            # Priority 2: Staging stage
+            # Try Staging stage
             if not loaded:
                 try:
                     model_uri = f"models:/{model_name}/Staging"
-                    logger.info(f"🎯 Attempting to load Staging model: {model_uri}")
+                    logger.info(f"🎯 Attempting Staging: {model_uri}")
                     if self._load_from_mlflow(model_uri, skip_tracking_uri=True):
-                        logger.warning("⚠️ Using Staging model (no Production model available)")
+                        logger.warning("⚠️ Using Staging model")
                         self._update_production_config(model_uri, "Staging")
                         loaded = True
                 except Exception as e:
-                    logger.info(f"No model in Staging stage: {e}")
+                    logger.info(f"No Staging model: {e}")
 
-            # Priority 3: Latest version (any stage)
+            # Try latest version
             if not loaded:
                 try:
                     client = mlflow.tracking.MlflowClient()
@@ -408,27 +416,21 @@ class ModelService:
                     if versions:
                         latest_version = versions[0].version
                         model_uri = f"models:/{model_name}/{latest_version}"
-                        logger.info(f"🎯 Attempting to load latest version: {model_uri}")
+                        logger.info(f"🎯 Attempting latest: v{latest_version}")
                         if self._load_from_mlflow(model_uri, skip_tracking_uri=True):
-                            logger.warning(f"⚠️ Using latest version v{latest_version} (no staged model available)")
-                            self._update_production_config(model_uri, f"None (v{latest_version})")
+                            logger.warning(f"⚠️ Using v{latest_version}")
+                            self._update_production_config(model_uri, f"v{latest_version}")
                             loaded = True
                 except Exception as e:
-                    logger.error(f"Failed to load latest version: {e}")
+                    logger.error(f"Failed to load latest: {e}")
 
             if loaded:
                 return
 
-            # Priority 4: Fallback to local artifacts
-            logger.warning("⚠️ MLflow models not available, trying local artifacts...")
-            if self._load_from_local_artifacts():
-                logger.info("✅ Loaded from local artifacts")
-                return
-
-            # If nothing worked, raise clear error
+            # Nothing worked
             raise RuntimeError(
-                f"Modelo '{model_name}' não encontrado no MLflow. "
-                f"Por favor, treine um modelo usando: python -m cli.main train --ticker PETR4.SA --epochs 20"
+                f"Modelo não encontrado. "
+                f"Treine um modelo: python -m cli train --ticker PETR4.SA --epochs 100"
             )
 
         except FileNotFoundError as e:

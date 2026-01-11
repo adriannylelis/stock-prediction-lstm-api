@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        DOWNLOAD_ARTIFACTS: "false"  # Dev mode - usa artifacts local
     container_name: stock-api-backend
     ports:
       - "5001:5001"

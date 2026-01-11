@@ -158,14 +158,14 @@ class Trainer:
                 ticker_ids_batch = ticker_ids_batch.long().to(self.device)  # Force long dtype
 
                 # Forward pass com ticker_ids (embedding model)
-                outputs = self.model(X_batch, ticker_ids_batch)
+                outputs, _ = self.model(X_batch, ticker_ids_batch)
             else:
                 X_batch, y_batch = batch
                 X_batch = X_batch.to(self.device)
                 y_batch = y_batch.squeeze().to(self.device)  # Ensure 1D: (batch,)
 
                 # Forward pass sem ticker_ids (backward compatibility)
-                outputs = self.model(X_batch)
+                outputs, _ = self.model(X_batch)
 
             loss = self.criterion(outputs.squeeze(), y_batch)
 
@@ -201,14 +201,14 @@ class Trainer:
                     ticker_ids_batch = ticker_ids_batch.long().to(self.device)  # Force long dtype
 
                     # Forward pass com ticker_ids (embedding model)
-                    outputs = self.model(X_batch, ticker_ids_batch)
+                    outputs, _ = self.model(X_batch, ticker_ids_batch)
                 else:
                     X_batch, y_batch = batch
                     X_batch = X_batch.to(self.device)
                     y_batch = y_batch.squeeze().to(self.device)  # Ensure 1D: (batch,)
 
                     # Forward pass sem ticker_ids (backward compatibility)
-                    outputs = self.model(X_batch)
+                    outputs, _ = self.model(X_batch)
 
                 loss = self.criterion(outputs.squeeze(), y_batch)
                 total_loss += loss.item()
@@ -575,7 +575,7 @@ class Trainer:
             "embedding_dim": self.model.embedding_dim,
             "hidden_size": self.model.hidden_size,
             "num_layers": self.model.num_layers,
-            "dropout": self.model.dropout_prob,
+            "dropout": self.model.dropout_rate,
         }
         torch.save(checkpoint, filepath)
 
@@ -619,14 +619,14 @@ class Trainer:
                     ticker_ids_batch = ticker_ids_batch.long().to(self.device)  # Force long dtype
 
                     # Forward pass com ticker_ids (embedding model)
-                    outputs = self.model(X_batch, ticker_ids_batch)
+                    outputs, _ = self.model(X_batch, ticker_ids_batch)
                 else:
                     X_batch, y_batch = batch
                     X_batch = X_batch.to(self.device)
                     y_batch = y_batch.to(self.device)
 
                     # Forward pass sem ticker_ids (backward compatibility)
-                    outputs = self.model(X_batch)
+                    outputs, _ = self.model(X_batch)
 
                 all_predictions.extend(outputs.squeeze().cpu().numpy())
                 all_targets.extend(y_batch.cpu().numpy())

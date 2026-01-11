@@ -1,153 +1,116 @@
-# Stock Prediction LSTM API 📈
+# 🚀 Stock Prediction LSTM API - PETR4.SA
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch 2.2 (CPU)](https://img.shields.io/badge/PyTorch-2.2%20CPU-ee4c2c.svg)](https://pytorch.org/)
-[![Flask 3.x](https://img.shields.io/badge/Flask-3.x-000000.svg)](https://flask.palletsprojects.com/)
-[![Tests](https://img.shields.io/badge/tests-63%20total-blue.svg)](tests/)
-[![Unit Tests](https://img.shields.io/badge/unit-53%2F53%20✓-brightgreen.svg)](tests/unit/)
-[![Integration](https://img.shields.io/badge/integration-5%2F6%20✓-green.svg)](tests/integration/)
-[![E2E](https://img.shields.io/badge/e2e-5%2F7%20✓-yellow.svg)](tests/e2e/)
-[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+**Previsão de preços de ações usando LSTM + Deploy automatizado na Google Cloud Platform**
 
-API de previsão de preços de ações com LSTM (Flask, porta 5001) e MLflow como fonte da verdade. Estado atual: modelo Production single-ticker (PETR4.SA), 18 features (sem SMA_200), lookback 60, PyTorch CPU.
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.2.2-red.svg)](https://pytorch.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.0-green.svg)](https://flask.palletsprojects.com/)
+[![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
+[![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Platform-yellow.svg)](https://cloud.google.com/)
+
+API REST completa para previsão de preços de ações brasileiras usando **LSTM**, com foco em **PETR4.SA (Petrobras)**. Inclui frontend web, treino automatizado via GitHub Actions e deploy na Google Cloud Platform.
+
+---
 
 ---
 
 ## 📋 Índice
 
-- [Visão Geral](#-visão-geral)
-- [Arquitetura](#-arquitetura)
-- [Funcionalidades](#-funcionalidades)
-- [Instalação](#-instalação)
-- [Guia de Uso](#-guia-de-uso)
-- [CLI Commands](#-cli-commands)
-- [API REST](#-api-rest)
-- [Testes](#-testes)
-- [Documentação](#-documentação)
-- [Tecnologias](#-tecnologias)
+- [⚡ Quick Start](#-quick-start)
+- [🎯 Visão Geral](#-visão-geral)
+- [🏗️ Arquitetura](#️-arquitetura)
+- [💰 Custos](#-custos)
+- [📚 Documentação](#-documentação)
+- [🧪 Testes](#-testes)
+- [🤝 Contribuindo](#-contribuindo)
 
 ---
 
-## 🚀 Quick Start
+## ⚡ Quick Start
+
+### **1. Treino Local**
 
 ```bash
-# 1. Treinar modelo de produção (36 tickers B3)
-python -m cli train --use-all-tickers --epochs 25 --batch-size 64
+# Clone e configure
+git clone https://github.com/adriannylelis/stock-prediction-lstm-api.git
+cd stock-prediction-lstm-api
+python3.11 -m venv venv && source venv/bin/activate
 
-# 2. Visualizar no MLflow UI
-.\scripts\init_mlflow.ps1  # Windows
-# ou
-./scripts/init_mlflow.sh   # Linux/Mac
-# Acesse: http://127.0.0.1:5001
+# Instalar dependências
+pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+pip install "numpy<2.0" -r requirements.txt
 
-# 3. Promover para Production
-python promote_to_production.py
-
-# 4. Testar predição
-python -m src.api.main  # Inicia API na porta 5000
-# Em outro terminal:
-curl -X POST http://localhost:5000/predict \
-  -H "Content-Type: application/json" \
-  -d '{"ticker": "PETR4.SA"}'
+# Treinar modelo (PETR4.SA)
+./scripts/local_train.sh
 ```
 
-**📊 Para análise detalhada**, veja [RELATORIO_PROJETO.md](RELATORIO_PROJETO.md)
+### **2. Testar Localmente**
+
+```bash
+# Opção A: Docker (recomendado)
+docker-compose up backend
+
+# Opção B: Python direto
+python -m flask --app src.api.main:create_app run --port 5001
+```
+
+**Testar:**
+```bash
+# Health check
+curl http://localhost:5001/health
+
+# Predição
+curl -X POST http://localhost:5001/predict \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "PETR4.SA", "periods": 7}'
+```
+
+### **3. Deploy na Google Cloud**
+
+```bash
+# Setup automático (10 minutos)
+./scripts/setup_gcloud.sh
+
+# Configurar GitHub Secrets (GCP_PROJECT_ID, GCP_SA_KEY)
+# Depois: GitHub Actions → Train Model Weekly → Run workflow
+```
+
+📖 **Guia completo:** [GCLOUD_DEPLOY.md](docs/GCLOUD_DEPLOY.md)
 
 ---
 
 ## 🎯 Visão Geral
 
-Este projeto implementa um sistema completo de **previsão de preços de ações B3** com arquitetura **MLOps moderna**:
+Sistema completo de **previsão de preços de ações** com **LSTM** e arquitetura **MLOps moderna**:
 
-- ✅ **MLflow-First**: Modelos, scalers, configs e métricas no MLflow (source of truth)
-- ✅ **Single-Ticker (atual)**: Suporte apenas a **PETR4.SA** em produção (ticker único)
-- ✅ **Pipeline de Dados**: Ingestão automática (Yahoo Finance), **18 features** (OHLCV + indicadores sem SMA_200)
-- ✅ **Modelo LSTM**: PyTorch, 3 camadas, dropout 0.3, early stopping (sem embeddings no modelo atual)
-- ✅ **Treinamento**: MLflow tracking, model registry (Staging/Production), salvamento de artifacts
-- ✅ **CLI Simplificado**: Comando `train` com suporte a multi-ticker (`--use-all-tickers`)
-- ✅ **API REST**: Flask com 3 endpoints (health, model/info, predict), carregamento MLflow automático
-- ✅ **Qualidade**: **63 testes** (58 passing - 92.06%), shapes validados, correções críticas aplicadas
+### **Features:**
+- ✅ **Backend API** (Flask + PyTorch)
+- ✅ **Frontend Web** (React + Vite + TailwindCSS)
+- ✅ **Treino automatizado semanal** (GitHub Actions)
+- ✅ **Deploy automatizado** na Google Cloud Platform
+- ✅ **Versionamento de modelos** via GitHub Releases
+- ✅ **Single ticker:** PETR4.SA (Petrobras)
+- ✅ **18 features técnicas** (OHLCV + indicadores)
+- ✅ **LSTM:** 100 hidden units, 3 layers, dropout 0.3
+- ✅ **Testes:** 63 testes automatizados (92% passing)
 
-**📊 Relatório Técnico Completo**: Veja [RELATORIO_PROJETO.md](RELATORIO_PROJETO.md) para análise detalhada de:
-- Arquitetura e shapes (18 features ativas)
-- Plano futuro de multi-ticker/embeddings (indisponível no modelo atual)
-- Ticker suportado: PETR4.SA
-- Correções críticas (Y normalization, batch consistency, deduplication)
-- Dimensionalidade da rede (~342k parâmetros)
+### **Fluxo MLOps:**
+
+```
+GitHub Actions (Treino Semanal)
+        ↓
+   GitHub Release (artifacts.zip)
+        ↓
+GitHub Actions (Deploy)
+        ↓
+   Google Cloud Platform
+   ├─ Cloud Run: Frontend (React + Nginx)
+   └─ Cloud Run: Backend (Flask + LSTM)
+```
 
 ---
 
 ## 🏗️ Arquitetura
-
-### **MLflow-First Architecture** 🎯
-
-O projeto segue uma arquitetura **MLflow-first**, onde **MLflow é a fonte da verdade** para:
-- ✅ Modelos (versionados e registrados)
-- ✅ Scalers (artifacts)
-- ✅ Configurações (params)
-- ✅ Métricas (tracking)
-- ✅ Experimentos (runs)
-
-```
-stock-prediction-lstm-api/
-├── src/                         # Código fonte principal
-│   ├── ml/                      # Core ML components
-│   │   ├── data/                # Data pipeline
-│   │   │   ├── ingestion.py         # Yahoo Finance integration
-│   │   │   ├── feature_engineering.py  # 18 technical indicators (sem SMA_200)
-│   │   │   └── preprocessing.py     # Normalization & sequences (PyTorch)
-│   │   ├── models/
-│   │   │   └── lstm.py              # PyTorch LSTM (single-ticker no momento)
-│   │   ├── training/
-│   │   │   ├── trainer.py           # Training loop + MLflow tracking
-│   │   │   ├── early_stopping.py    # Callback with min_delta
-│   │   │   ├── metrics.py           # MAE, RMSE, MAPE, R², DA
-│   │   │   ├── hyperparameter_tuner.py  # Optuna integration
-│   │   │   └── experiment_tracker.py    # MLflow wrapper
-│   │   ├── pipeline/
-│   │   │   ├── train_pipeline.py    # Single + Multi-ticker training
-│   │   │   └── predict_pipeline.py  # MLflow-based predictions
-│   │   └── utils/
-│   │       ├── persistence.py       # Data versioning (DataVersionManager)
-│   │       ├── device.py            # CPU/CUDA/MPS detection
-│   │       ├── logging.py           # Loguru structured logging
-│   │       └── seed.py              # Reproducibility (torch + numpy)
-│   ├── api/                     # REST API (Flask)
-│   │   ├── main.py                  # Application factory (porta 5001)
-│   │   ├── routes/                  # API endpoints
-│   │   │   ├── health.py            # GET /health
-│   │   │   ├── model_info.py        # GET /model/info
-│   │   │   └── prediction.py        # POST /predict (ticker único PETR4.SA)
-│   │   └── services/                # Business logic
-│   │       ├── model_service.py     # MLflow model loader (singleton)
-│   │       ├── data_service.py      # yfinance integration
-│   │       └── predict_service.py   # Prediction orchestration
-│   └── mlops/                   # MLOps automation
-│       ├── pipelines/               # Automation pipelines
-│       │   ├── training_pipeline.py     # Auto-training (43 tickers)
-│       │   └── promotion_pipeline.py    # Staging → Production
-│       ├── monitoring/
-│       │   └── model_comparator.py      # Metric-based comparison
-│       └── deployment/
-│           └── model_deployer.py        # Production deployment
-├── cli/
-│   ├── main.py                  # CLI entry point
-│   └── train.py                 # Train command (130 lines)
-├── tests/                       # 📊 63 testes automatizados
-## 🚀 Quick Start (estado atual)
-
-```bash
-# Subir backend Flask (porta 5001)
-docker compose build backend && docker compose up -d backend
-
-# Health e modelo
-curl -s http://localhost:5001/health
-curl -s http://localhost:5001/model/info
-
-# Predição (único ticker suportado)
-├── artifacts/                   # Local artifacts (fallback)
-│   └── models/                      # Checkpoints locais (keep 3)
-├── notebooks/
 ```
 
 **Modelo em produção:** models:/stock-lstm-model/Production (v2, val_loss ≈ 0.00101), 18 features, lookback 60, ticker único PETR4.SA. Tracking local em `data/mlflow/tracking` (montado via docker-compose).
@@ -184,157 +147,162 @@ curl -s http://localhost:5001/model/info
 2. Feature Engineering → Add technical indicators
 3. Preprocessing → Normalize & create sequences
 4. Training → Train LSTM with validation
-5. Evaluation → Calculate test metrics
+### **Estrutura de Pastas:**
 
-**PredictPipeline** (4 etapas):
-1. Data Ingestion → Download latest 2 years
-2. Feature Engineering → Add indicators
-3. Preprocessing → Prepare last sequence
-4. Prediction → Multi-step forecasting
+```
+stock-prediction-lstm-api/
+├── .github/workflows/
+│   ├── train-weekly.yml       # Treino semanal automatizado
+│   └── deploy-gcloud.yml      # Deploy GCloud (Frontend + Backend)
+│
+├── src/
+│   ├── api/                   # Flask API
+│   │   ├── routes/            # Endpoints (/health, /predict, /model-info)
+│   │   └── services/          # Lógica de negócio
+│   └── ml/                    # Pipeline de ML
+│       ├── data/              # Ingestão + Feature Engineering
+│       ├── training/          # Treino LSTM + MLflow
+│       └── pipeline/          # Train/Predict pipelines
+│
+├── frontend/                  # React + Vite
+│   ├── src/components/        # UI Components
+│   └── Dockerfile             # Multi-stage build
+│
+├── cli/                       # CLI para treino local
+├── scripts/                   # Scripts de automação
+├── docs/                      # Documentação completa
+│
+├── Dockerfile                 # Backend container
+└── docker-compose.yml         # Dev local (Frontend + Backend)
+```
 
-### **Monitoramento & Versionamento**
-- Drift detection (Kolmogorov-Smirnov test, PSI)
-- Data versioning com timestamps
-- Artifact management (models, scalers, configs)
-- Auto-cleanup de versões antigas
+### **Componentes Principais:**
 
-### **API REST**
-- Flask Application Factory Pattern
-- CORS habilitado para integração frontend
-- 3 endpoints: health check, model info, predictions
-- Singleton pattern para carregamento de modelo
-- Validação de entrada e tratamento de erros
-- Logging estruturado
+**Backend (Flask + PyTorch):**
+- Endpoints: `/health`, `/model-info`, `/predict`
+- Modelo: LSTM (100 hidden, 3 layers, dropout 0.3)
+- Features: 18 indicadores técnicos
+- Normalização: MinMaxScaler
+
+**Frontend (React):**
+- Dashboard interativo
+- Gráficos (Recharts)
+- UI moderna (TailwindCSS + shadcn/ui)
+- Integração com API via Axios
+
+**MLOps Pipeline:**
+- Treino: GitHub Actions (semanal, domingo 00:00 UTC)
+- Artifacts: GitHub Releases (versionados)
+- Deploy: Cloud Build + Cloud Run
+- Monitoramento: Cloud Run Logs + Metrics
 
 ---
 
-## 🚀 Quick Start
+## 💰 Custos
 
-### **🐳 Opção 1: Docker (Recomendado)**
+### **Google Cloud Platform**
 
-A forma mais rápida de iniciar o projeto completo (backend + frontend):
+| Serviço | Free Tier | Uso Estimado | Custo/mês |
+|---------|-----------|--------------|-----------|
+| Cloud Run Backend | 2M requests | 100k requests | $3-5 |
+| Cloud Run Frontend | Incluído | 100k requests | $1-2 |
+| Cloud Build | 120 min/dia | 80 min/mês | $0 |
+| Container Registry | 0.5GB | 1GB | $0.02 |
+| **Total** | | | **$4-8/mês** |
 
-```bash
-# 1. Clone o repositório
-git clone https://github.com/adriannylelis/stock-prediction-lstm-api.git
-cd stock-prediction-lstm-api
+### **GitHub Actions**
+- ✅ **100% Grátis** (2000 min/mês - uso ~100 min/mês)
 
-# 2. Inicie os containers
-docker-compose up --build
-
-# 3. Acesse as aplicações
-# Frontend: http://localhost:3000
-# Backend API: http://localhost:5001/health
-```
-
-**O que está rodando:**
-- ✅ **Frontend**: React dashboard em http://localhost:3000
-- ✅ **Backend**: Flask API em http://localhost:5001
-- ✅ **Healthchecks**: Automáticos para ambos containers
-- ✅ **Network**: Comunicação interna entre serviços
-
-**Comandos úteis:**
-```bash
-# Ver logs em tempo real
-docker-compose logs -f
-
-# Ver logs só do frontend
-docker-compose logs -f frontend
-
-# Ver logs só do backend
-docker-compose logs -f backend
-
-# Parar containers
-docker-compose down
-
-# Parar e remover volumes
-docker-compose down -v
-```
+**Alternativas de baixo custo:** Veja [docs/alternatives/](docs/alternatives/) para opções em Render, Railway e outros.
 
 ---
 
-### **💻 Opção 2: Desenvolvimento Local**
+## 📚 Documentação
 
-#### **Backend (API)**
+### **Deploy & Setup:**
+- 📖 **[Guia de Deploy Google Cloud](docs/GCLOUD_DEPLOY.md)** ⭐ PRINCIPAL
+- ⚡ [Quick Start 5 Min](docs/QUICK_START_5MIN.md)
+- 🔧 [Setup Script GCloud](scripts/setup_gcloud.sh)
 
-**Pré-requisitos:**
-- Python 3.11+
-- pip ou uv
+### **Arquitetura:**
+- 🏗️ [Arquitetura MLOps](docs/ARCHITECTURE_MLOPS.md)
+- 📊 [Diagrama Visual](ARCHITECTURE_DIAGRAM.txt)
+- 📝 [Resumo de Implementação](IMPLEMENTATION_SUMMARY.md)
+- 📄 [Relatório Técnico do Projeto](RELATORIO_PROJETO.md)
 
-**Setup:**
-```bash
-# 1. Clone o repositório
-git clone https://github.com/adriannylelis/stock-prediction-lstm-api.git
-cd stock-prediction-lstm-api
+### **API & Frontend:**
+- 🔌 [API Documentation](docs/API_DOCUMENTATION.md)
+- 🎨 [Frontend Testing Guide](frontend/TESTING_GUIDE.md)
+- 📡 [CLI Documentation](docs/CLI_DOCUMENTATION.md)
 
-# 2. Crie ambiente virtual
-python -m venv venv
+### **Desenvolvimento:**
+- 🐳 [Docker Guide](docs/DOCKER_GUIDE.md)
+- 🧪 [Como Rodar Testes](docs/RUN_TESTS.md)
+- 🤖 [ML Documentation](docs/ML_DOCUMENTATION.md)
 
-# Windows
-venv\Scripts\activate
-
-# Linux/Mac
-source venv/bin/activate
-
-# 3. Instale dependências
-pip install -r requirements.txt
-
-# 4. Execute a API
-python -m src.api.main
-
-Use o script automatizado para configurar o ambiente:
-
-#### **Linux/Mac/Git Bash**
-```bash
-chmod +x scripts/setup.sh
-./scripts/setup.sh
-```
-
-O script irá:
-- ✅ Detectar Python 3.13
-- ✅ Criar ambiente virtual (.venv)
-- ✅ Instalar PyTorch (escolha CPU ou GPU CUDA 12.4)
-- ✅ Instalar dependências (requirements.txt + requirements-dev.txt)
-- ✅ Instalar projeto em modo editable (pip install -e .)
-- ✅ Criar diretórios necessários (data/, models/, artifacts/, logs/)
-- ✅ Verificar instalação (torch, mlflow, flask)
+### **Alternativas:**
+- 💡 [Deploy Render/Railway](docs/alternatives/DEPLOY_FREE_TIER.md)
 
 ---
 
-## 📦 Instalação Completa (Manual)
+## 🧪 Testes
 
-Se preferir configurar tudo manualmente:
+**Status:** 63 testes automatizados (92% passing)
 
-#### **1. Clone o Repositório**
 ```bash
-git clone https://github.com/adriannylelis/stock-prediction-lstm-api.git
-cd stock-prediction-lstm-api
+# Todos os testes
+pytest
+
+# Apenas unit tests
+pytest tests/unit/
+
+# Apenas integration tests
+pytest tests/integration/
+
+# E2E tests
+pytest tests/e2e/
+
+# Com coverage
+pytest --cov=src tests/
 ```
 
-#### **2. Crie o Ambiente Virtual (Backend)**
-```bash
-# Com venv
-python -m venv venv
+**Cobertura:**
+- Unit: 53/53 ✓ (100%)
+- Integration: 5/6 ✓ (83%)
+- E2E: 5/7 ✓ (71%)
 
-# Ativar no Windows
-venv\Scripts\activate
+---
 
-# Ativar no Linux/Mac
-source venv/bin/activate
+## 🤝 Contribuindo
 
-# Ou com uv (recomendado)
-uv venv
-uv sync
-```
+1. Fork o projeto
+2. Crie uma branch (`git checkout -b feature/nova-feature`)
+3. Commit suas mudanças (`git commit -m 'Adiciona nova feature'`)
+4. Push para a branch (`git push origin feature/nova-feature`)
+5. Abra um Pull Request
 
-#### **3. Instale as Dependências**
-```bash
-# PyTorch (escolha CPU ou GPU)
-# CPU:
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+---
 
-# GPU (CUDA 12.4):
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+## 📄 Licença
+
+MIT License - Veja [LICENSE](LICENSE) para detalhes.
+
+---
+
+## 🙏 Agradecimentos
+
+- **Yahoo Finance** (yfinance) - Dados históricos
+- **PyTorch** - Framework de Deep Learning
+- **Flask** - Framework Web
+- **React** - Framework Frontend
+- **Google Cloud Platform** - Infraestrutura
+
+---
+
+**Desenvolvido com ❤️ para análise de ações brasileiras**
+
+⭐ **Se este projeto foi útil, considere dar uma estrela no GitHub!**
+
 
 # Dependências principais
 pip install -r requirements.txt

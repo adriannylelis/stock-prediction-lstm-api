@@ -141,14 +141,31 @@ class PredictService:
                 f"mudança={change_percent:.2f}%"
             )
 
+            # Preparar histórico dos últimos 30 dias para gráfico
+            history_days = min(30, len(df_features))
+            history = []
+            for i in range(-history_days, 0):
+                date = df_features.index[i]
+                close = float(df_features['Close'].iloc[i])
+                history.append({
+                    "date": date.strftime('%Y-%m-%d'),
+                    "price": round(close, 2)
+                })
+
             return {
                 "ticker": ticker,
-                "predicted_price": round(predicted_price, 2),
-                "current_price": round(current_price, 2),
-                "change_percent": round(change_percent, 2),
-                "change_direction": "alta" if change_percent > 0 else "baixa" if change_percent < 0 else "neutra",
-                "prediction_date": prediction_date,
-                "confidence": confidence,
+                "prediction": {
+                    "date": prediction_date,
+                    "price": round(predicted_price, 2),
+                    "change_percent": round(change_percent, 2),
+                    "change_direction": "alta" if change_percent > 0 else "baixa" if change_percent < 0 else "neutra",
+                    "confidence": confidence
+                },
+                "current": {
+                    "price": round(current_price, 2),
+                    "date": df_features.index[-1].strftime('%Y-%m-%d')
+                },
+                "history": history,
                 "timestamp": datetime.utcnow().isoformat()
             }
 

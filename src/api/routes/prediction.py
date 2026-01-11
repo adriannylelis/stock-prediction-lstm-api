@@ -27,16 +27,15 @@ def get_predict_service():
 @prediction_bp.route('/predict', methods=['POST'])
 def predict():
     """
-    Endpoint para predição de preço de ação.
+    Endpoint para predição do próximo dia + histórico de 30 dias.
     
-    Query Parameters:
-        include_history (bool): Se 'true', inclui últimos 30 dias de dados históricos
-        
     Request Body:
-        ticker (str): Símbolo da ação (ex: AAPL, PETR4.SA)
+        ticker (str): Símbolo da ação (ex: PETR4.SA)
         
     Returns:
-        JSON com predição e opcionalmente dados históricos
+        JSON com:
+        - prediction: Previsão para o próximo dia
+        - history: Últimos 30 dias de preços reais (para gráfico)
     """
     try:
         if not request.is_json:

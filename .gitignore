@@ -230,9 +230,13 @@ data/versioned/
 data/predictions/
 data_test/
 
-# Artifacts (KEEP THIS - fallback models versioned in Git)
-# artifacts/ is intentionally NOT ignored
-# Only ignore test artifacts
+# Artifacts - Trained models (NOT committed to Git, downloaded from GitHub Releases)
+# Durante desenvolvimento local, use ./scripts/local_train.sh para gerar artifacts/
+# Em produção, o Dockerfile baixa automaticamente do GitHub Release
+artifacts/
+!artifacts/.gitkeep
+
+# Test artifacts
 artifacts_test/
 
 # Logs

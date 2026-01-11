@@ -1,0 +1,187 @@
+# 🎯 ARQUITETURA MLOPS - GOOGLE CLOUD PLATFORM
+## Deploy Full Stack (Frontend + Backend + ML Pipeline)
+
+```
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                         GITHUB REPOSITORY                                 ║
+║                    stock-prediction-lstm-api                              ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+                                    │
+                                    │ Push code / Schedule
+                                    ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│                          GITHUB ACTIONS (CI/CD)                           │
+│                           Custo: $0/mês (Free Tier)                       │
+├───────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  ┌─────────────────────────────────────────────────────────────────────┐ │
+│  │  🤖 JOB 1: TREINO SEMANAL (Domingo 00:00 UTC)                      │ │
+│  │  Workflow: train-weekly.yml                                         │ │
+│  │  Duration: ~5-10 minutos                                            │ │
+│  │                                                                     │ │
+│  │  Steps:                                                             │ │
+│  │  ├─ 1. Setup Python 3.11                                           │ │
+│  │  ├─ 2. Install PyTorch CPU                                         │ │
+│  │  ├─ 3. Download dados históricos (yfinance)                        │ │
+│  │  ├─ 4. Train LSTM Model                                            │ │
+│  │  │     • Ticker: PETR4.SA                                          │ │
+│  │  │     • Epochs: 100                                               │ │
+│  │  │     • Architecture: 100 hidden, 3 layers                        │ │
+│  │  ├─ 5. Validate artifacts/                                         │ │
+│  │  │     ├─ model.pt (~8MB)                                          │ │
+│  │  │     ├─ scaler.pkl (~5KB)                                        │ │
+│  │  │     └─ y_scaler.pkl (~5KB)                                      │ │
+│  │  ├─ 6. Package artifacts.zip                                       │ │
+│  │  └─ 7. Create GitHub Release (v1.0.X)                              │ │
+│  │                                                                     │ │
+│  │  Output:                                                            │ │
+│  │  └─ 📦 GitHub Release com artifacts.zip                            │ │
+│  └─────────────────────────────────────────────────────────────────────┘ │
+│                                │                                          │
+│                                │ Trigger on success                       │
+│                                ▼                                          │
+│  ┌─────────────────────────────────────────────────────────────────────┐ │
+│  │  🌐 JOB 2: DEPLOY GOOGLE CLOUD (Full Stack)                        │ │
+│  │  Workflow: deploy-gcloud.yml                                        │ │
+│  │  Duration: ~15-20 minutos                                           │ │
+│  │                                                                     │ │
+│  │  ┌────────────────── BACKEND DEPLOYMENT ──────────────────────┐    │ │
+│  │  │                                                             │    │ │
+│  │  │  Steps:                                                     │    │ │
+│  │  │  ├─ 1. Authenticate GCP (Service Account)                  │    │ │
+│  │  │  ├─ 2. Download artifacts from Release                     │    │ │
+│  │  │  ├─ 3. Build Docker Image (Cloud Build)                    │    │ │
+│  │  │  │     └─ gcr.io/project/stock-api-backend:latest          │    │ │
+│  │  │  ├─ 4. Deploy to Cloud Run                                 │    │ │
+│  │  │  │     • Memory: 512MB                                      │    │ │
+│  │  │  │     • CPU: 1 vCPU                                        │    │ │
+│  │  │  │     • Min instances: 0 (auto-scale)                      │    │ │
+│  │  │  │     • Region: us-central1                                │    │ │
+│  │  │  └─ 5. Health Check (/health)                               │    │ │
+│  │  │                                                             │    │ │
+│  │  │  Output:                                                    │    │ │
+│  │  │  └─ 🔗 Backend URL: https://stock-api-backend-xxx.run.app  │    │ │
+│  │  └─────────────────────────────────────────────────────────────┘    │ │
+│  │                                │                                     │ │
+│  │                                │ Pass backend URL                    │ │
+│  │                                ▼                                     │ │
+│  │  ┌────────────────── FRONTEND DEPLOYMENT ─────────────────────┐    │ │
+│  │  │                                                             │    │ │
+│  │  │  Steps:                                                     │    │ │
+│  │  │  ├─ 1. Get Backend URL                                      │    │ │
+│  │  │  ├─ 2. Update nginx.conf (proxy_pass)                      │    │ │
+│  │  │  ├─ 3. Build Docker Image (Cloud Build)                    │    │ │
+│  │  │  │     └─ gcr.io/project/stock-api-frontend:latest         │    │ │
+│  │  │  ├─ 4. Deploy to Cloud Run                                 │    │ │
+│  │  │  │     • Memory: 256MB                                      │    │ │
+│  │  │  │     • CPU: 1 vCPU                                        │    │ │
+│  │  │  │     • Min instances: 0                                   │    │ │
+│  │  │  └─ 5. Smoke Test                                           │    │ │
+│  │  │                                                             │    │ │
+│  │  │  Output:                                                    │    │ │
+│  │  │  └─ 🔗 Frontend URL: https://stock-api-frontend-xxx.run.app│    │ │
+│  │  └─────────────────────────────────────────────────────────────┘    │ │
+│  └─────────────────────────────────────────────────────────────────────┘ │
+└───────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │ Deploy artifacts
+                                    ▼
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                       GOOGLE CLOUD PLATFORM                               ║
+║                      Custo: ~$4-7/mês (uso moderado)                      ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+                                    │
+            ┌───────────────────────┴───────────────────────┐
+            │                                               │
+            ▼                                               ▼
+┌─────────────────────────────┐               ┌─────────────────────────────┐
+│   CLOUD RUN - FRONTEND      │               │   CLOUD RUN - BACKEND       │
+│   React + Vite + Nginx      │──────────────▶│   Flask + PyTorch CPU       │
+├─────────────────────────────┤   API Calls   ├─────────────────────────────┤
+│                             │               │                             │
+│ 📍 Service Name:            │               │ 📍 Service Name:            │
+│    stock-api-frontend       │               │    stock-api-backend        │
+│                             │               │                             │
+│ 🌐 URL:                     │               │ 🌐 URL:                     │
+│    https://stock-api-       │               │    https://stock-api-       │
+│    frontend-xxx.run.app     │               │    backend-xxx.run.app      │
+│                             │               │                             │
+│ 💾 Resources:               │               │ 💾 Resources:               │
+│    • 256MB RAM              │               │    • 512MB RAM              │
+│    • 1 vCPU                 │               │    • 1 vCPU                 │
+│    • Min instances: 0       │               │    • Min instances: 0       │
+│                             │               │                             │
+│ 📦 Endpoints:               │               │ 📦 Endpoints:               │
+│    • / (SPA)                │               │    • GET  /health           │
+│    • /assets/* (static)     │               │    • GET  /model-info       │
+│                             │               │    • POST /predict          │
+│                             │               │                             │
+│ 💰 Cost: ~$1-2/mês          │               │ 💰 Cost: ~$3-5/mês          │
+└─────────────────────────────┘               └─────────────────────────────┘
+            │                                               │
+            │                                               │
+            └───────────────────────┬───────────────────────┘
+                                    │
+                                    ▼
+                ┌─────────────────────────────────────────┐
+                │   CONTAINER REGISTRY (GCR)              │
+                ├─────────────────────────────────────────┤
+                │  📦 gcr.io/project/stock-api-backend    │
+                │     └─ :latest, :sha                    │
+                │  📦 gcr.io/project/stock-api-frontend   │
+                │     └─ :latest, :sha                    │
+                │                                         │
+                │  💾 Storage: ~1GB                       │
+                │  💰 Cost: ~$0.02/mês                    │
+                └─────────────────────────────────────────┘
+
+                                    │
+                                    │ Serve requests
+                                    ▼
+                        ┌───────────────────────┐
+                        │   👥 USUÁRIOS FINAIS  │
+                        ├───────────────────────┤
+                        │  • Browser            │
+                        │  • Mobile             │
+                        │  • API Consumers      │
+                        └───────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════
+
+📊 RESUMO DE CUSTOS (Mensal):
+
+┌────────────────────────┬──────────────┬──────────────┬──────────────┐
+│ Serviço                │ Free Tier    │ Uso Estimado │ Custo        │
+├────────────────────────┼──────────────┼──────────────┼──────────────┤
+│ GitHub Actions         │ 2000 min     │ ~100 min     │ $0           │
+│ Cloud Run Backend      │ 2M req       │ 100k req     │ $3-5         │
+│ Cloud Run Frontend     │ Incluído     │ 100k req     │ $1-2         │
+│ Cloud Build            │ 120 min/dia  │ 80 min/mês   │ $0           │
+│ Container Registry     │ 0.5GB        │ 1GB          │ $0.02        │
+│ Network Egress         │ 1GB          │ 10GB         │ $1           │
+├────────────────────────┴──────────────┴──────────────┼──────────────┤
+│ TOTAL                                                 │ $4-8/mês     │
+└───────────────────────────────────────────────────────┴──────────────┘
+
+🎯 BENEFÍCIOS:
+
+✅ Full Stack (Frontend + Backend)
+✅ Deploy automatizado via GitHub Actions
+✅ Treino semanal automatizado
+✅ Escalável (0 → N instâncias)
+✅ Sem cold start (Cloud Run)
+✅ SSL/HTTPS automático
+✅ Rollback fácil (GitHub Releases)
+✅ Monitoramento integrado (GCloud Console)
+✅ Logs centralizados
+✅ Production-ready
+
+📚 PRÓXIMOS PASSOS:
+
+1. ./scripts/setup_gcloud.sh
+2. Configurar GitHub Secrets (GCP_PROJECT_ID, GCP_SA_KEY)
+3. Executar: GitHub Actions → Train Model Weekly
+4. Executar: GitHub Actions → Deploy to Google Cloud
+5. Acessar URLs e testar!
+
+═══════════════════════════════════════════════════════════════════════════
