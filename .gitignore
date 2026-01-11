@@ -220,8 +220,6 @@ experiments/
 mlruns/
 mlartifacts/
 
-# Old models/ directory (migrated to artifacts/models/)
-models/
 
 # Data (generated, not versioned)
 data/raw/
