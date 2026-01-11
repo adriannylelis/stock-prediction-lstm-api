@@ -46,7 +46,9 @@ ARG DOWNLOAD_ARTIFACTS="true"
 
 RUN if [ "$DOWNLOAD_ARTIFACTS" = "true" ] && [ ! -f "artifacts/model.pt" ]; then \
         echo "📥 Downloading artifacts from GitHub Release..."; \
-        LATEST_RELEASE=$(curl -s https://api.github.com/repos/${GITHUB_REPO}/releases/latest); \
+        REPO="${GITHUB_REPO:-adriannylelis/stock-prediction-lstm-api}"; \
+        echo "📦 Repository: $REPO"; \
+        LATEST_RELEASE=$(curl -s "https://api.github.com/repos/$REPO/releases/latest"); \
         \
         # Verificar se a resposta da API é válida \
         if [ -z "$LATEST_RELEASE" ] || echo "$LATEST_RELEASE" | grep -q "Not Found"; then \
