@@ -42,10 +42,12 @@ jobs:
       - name: 📦 Install dependencies
         run: |
           pip install -r requirements.txt
+          pip install -e .
       
       # ==================== TRAINING ====================
       - name: 🎯 Train LSTM Model - PETR4.SA
         run: |
+          export PYTHONPATH="${PYTHONPATH}:${GITHUB_WORKSPACE}"
           python -m cli train \
             --ticker ${{ github.event.inputs.ticker || 'PETR4.SA' }} \
             --start-date 2020-01-01 \

@@ -41,7 +41,7 @@ api = [
 stock-predict = "cli.main:cli"
 
 [tool.setuptools]
-packages = ["cli", "src", "src.ml", "src.ml.data", "src.ml.models", "src.ml.training", "src.ml.pipeline", "src.ml.monitoring", "src.ml.utils"]
+packages = { find = { where = ["."], include = ["cli*", "src*"] } }
 
 [tool.ruff]
 line-length = 100
