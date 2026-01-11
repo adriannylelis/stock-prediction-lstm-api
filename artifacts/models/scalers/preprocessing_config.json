@@ -1,0 +1,31 @@
+{
+  "num_features": 18,
+  "num_tickers": 1,
+  "lookback": 60,
+  "feature_cols": [
+    "Close",
+    "High",
+    "Low",
+    "Open",
+    "Volume",
+    "SMA_20",
+    "SMA_50",
+    "EMA_12",
+    "EMA_26",
+    "RSI_14",
+    "MACD",
+    "MACD_signal",
+    "MACD_hist",
+    "BB_middle",
+    "BB_upper",
+    "BB_lower",
+    "ATR_14",
+    "Returns"
+  ],
+  "ticker_to_id": {
+    "PETR4.SA": 0
+  },
+  "ticker_list": [
+    "PETR4.SA"
+  ]
+}
