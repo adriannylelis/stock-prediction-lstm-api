@@ -489,7 +489,6 @@ Para uso avançado e treinamento de modelos:
 # 1. Treinar modelo para PETR4.SA (Petrobras)
 stock-predict train \
   --ticker PETR4.SA \
-  --start-date 2023-01-01 \
   --end-date 2024-01-01 \
   --lookback 60 \
   --hidden-size 64 \

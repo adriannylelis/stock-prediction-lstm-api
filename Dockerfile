@@ -25,8 +25,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copiar requirements primeiro (aproveitando cache do Docker)
 COPY requirements.txt .
 
-# Instalar PyTorch CPU-only (muito menor que CUDA)
-RUN pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+# Instalar PyTorch CPU-only (muito menor que CUDA) com timeout aumentado
+RUN pip install --timeout=300 --retries=5 torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
 
 # Instalar NumPy < 2.0 para compatibilidade com PyTorch 2.2.2
 RUN pip install "numpy<2.0"
