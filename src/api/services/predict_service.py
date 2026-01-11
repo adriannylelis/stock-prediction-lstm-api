@@ -105,9 +105,9 @@ class PredictService:
 
             with torch.no_grad():
                 if is_embedding_model:
-                    prediction_scaled = model(X, ticker_ids)
+                    prediction_scaled, _ = model(X, ticker_ids)  # Unpack tuple: (outputs, hidden_state)
                 else:
-                    prediction_scaled = model(X)
+                    prediction_scaled, _ = model(X)  # Unpack tuple: (outputs, hidden_state)
 
             # Debug prediction
             print(f"🔍 DEBUG Prediction shape: {prediction_scaled.shape}")

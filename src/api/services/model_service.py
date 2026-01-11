@@ -607,9 +607,9 @@ class ModelService:
             # Check if model uses embeddings
             if hasattr(self.model, 'ticker_embedding'):
                 ticker_ids = torch.tensor([ticker_id] * input_tensor.shape[0]).to(device)
-                output = self.model(input_tensor, ticker_ids)
+                output, _ = self.model(input_tensor, ticker_ids)  # Unpack tuple: (outputs, hidden_state)
             else:
-                output = self.model(input_tensor)
+                output, _ = self.model(input_tensor)  # Unpack tuple: (outputs, hidden_state)
 
         # Convert to numpy
         predictions = output.cpu().numpy().flatten()
