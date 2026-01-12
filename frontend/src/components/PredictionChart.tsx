@@ -41,7 +41,7 @@ export function PredictionChart({
           month: 'short', 
           day: 'numeric' 
         }),
-        historical: point.close,
+        historical: point.price,
       });
     });
   }
@@ -63,7 +63,7 @@ export function PredictionChart({
   const allPrices = [
     currentPrice, 
     predictedPrice,
-    ...(historicalData?.map(d => d.close) || [])
+    ...(historicalData?.map(d => d.price) || [])
   ];
   const minPrice = Math.min(...allPrices);
   const maxPrice = Math.max(...allPrices);
