@@ -152,21 +152,17 @@ class PredictService:
                     "price": round(close, 2)
                 })
 
+            # Retorna formato "flat" esperado pelo frontend
             return {
                 "ticker": ticker,
-                "prediction": {
-                    "date": prediction_date,
-                    "price": round(predicted_price, 2),
-                    "change_percent": round(change_percent, 2),
-                    "change_direction": "alta" if change_percent > 0 else "baixa" if change_percent < 0 else "neutra",
-                    "confidence": confidence
-                },
-                "current": {
-                    "price": round(current_price, 2),
-                    "date": df_features.index[-1].strftime('%Y-%m-%d')
-                },
-                "history": history,
-                "timestamp": datetime.utcnow().isoformat()
+                "predicted_price": round(predicted_price, 2),
+                "current_price": round(current_price, 2),
+                "change_percent": round(change_percent, 2),
+                "change_direction": "alta" if change_percent > 0 else "baixa" if change_percent < 0 else "neutra",
+                "prediction_date": prediction_date,
+                "confidence": confidence,
+                "timestamp": datetime.utcnow().isoformat(),
+                "historical_data": history
             }
 
         except (InvalidTickerError, TickerNotFoundError, InsufficientDataError,

@@ -9,8 +9,8 @@ import torch
 import yaml
 from loguru import logger
 
-from src.ml.models.lstm import StockLSTM
 from src.api.utils.exceptions import InvalidTickerError
+from src.ml.models.lstm import StockLSTM
 
 # Suppress MLflow filesystem deprecation warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="mlflow")
@@ -368,7 +368,7 @@ class ModelService:
 
             # Priority 2-4: MLflow
             logger.warning("⚠️ Local artifacts not available, trying MLflow...")
-            
+
             # Configure MLflow tracking URI
             tracking_uri = "file:data/mlflow/tracking"  # Default
             if self.production_config_path.exists():
@@ -429,8 +429,8 @@ class ModelService:
 
             # Nothing worked
             raise RuntimeError(
-                f"Modelo não encontrado. "
-                f"Treine um modelo: python -m cli train --ticker PETR4.SA --epochs 100"
+                "Modelo não encontrado. "
+                "Treine um modelo: python -m cli train --ticker PETR4.SA --epochs 100"
             )
 
         except FileNotFoundError as e:
@@ -507,13 +507,13 @@ class ModelService:
         """
         if self.y_scaler is not None:
             return self.y_scaler
-        
+
         # Fallback: create single-column scaler from X scaler (first feature = Close)
-        from sklearn.preprocessing import MinMaxScaler
         import numpy as np
-        
+        from sklearn.preprocessing import MinMaxScaler
+
         logger.warning("y_scaler not found, creating from X scaler first column (Close)")
-        
+
         # Extract stats from first column (Close) of X scaler
         close_scaler = MinMaxScaler()
         close_scaler.min_ = np.array([self.scaler.min_[0]])
@@ -524,7 +524,7 @@ class ModelService:
         close_scaler.n_features_in_ = 1
         close_scaler.n_samples_seen_ = self.scaler.n_samples_seen_
         close_scaler.feature_range = self.scaler.feature_range
-        
+
         return close_scaler
 
     def get_config(self) -> Dict[str, Any]:

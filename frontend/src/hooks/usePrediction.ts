@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { stockApi } from '@/services/api';
 import type { PredictionData } from '@/types';
 
-const mapConfidenceToPt = (value: string): 'alta' | 'média' | 'baixa' => {
+const mapConfidenceToPt = (value: string | undefined | null): 'alta' | 'média' | 'baixa' => {
+  if (!value) return 'média'; // Default to medium if undefined/null
   const v = value.toLowerCase();
   if (v === 'high' || v === 'alta') return 'alta';
   if (v === 'medium' || v === 'média' || v === 'media') return 'média';
@@ -28,7 +29,7 @@ export function usePrediction() {
       const data = await stockApi.predictStock(ticker, includeHistory);
       setPrediction({
         ...data,
-        confidence: mapConfidenceToPt(data.confidence),
+        confidence: data.confidence ? mapConfidenceToPt(data.confidence) : 'média',
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch prediction');

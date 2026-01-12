@@ -5,11 +5,7 @@ export interface PredictionResponse {
 
 export interface HistoricalDataPoint {
   date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
+  price: number;
 }
 
 export interface PredictionData {
@@ -19,7 +15,7 @@ export interface PredictionData {
   change_percent: number;
   change_direction: 'alta' | 'baixa' | 'neutra';
   prediction_date: string;
-  confidence: 'alta' | 'média' | 'baixa';
+  confidence?: 'alta' | 'média' | 'baixa';
   timestamp: string;
   historical_data?: HistoricalDataPoint[];
 }
