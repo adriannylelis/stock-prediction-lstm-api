@@ -11,6 +11,8 @@
 
 Este documento descreve a arquitetura MLOps completa implementada para o projeto de previsão de ações, com foco em **baixo custo** e **alta automação**.
 
+Para um resumo executivo focado no deploy em Google Cloud (Cloud Run + Cloud Build) e nos artefatos já implementados, veja também [IMPLEMENTATION_SUMMARY.md](../IMPLEMENTATION_SUMMARY.md).
+
 ### 🎯 Objetivos Alcançados
 
 - ✅ Treino automatizado semanal (GitHub Actions)
@@ -30,14 +32,14 @@ graph TB
     A[Desenvolvedor] -->|Push Code| B[GitHub Repository]
     B -->|Weekly Schedule| C[GitHub Actions: Train]
     C -->|Train LSTM| D[PETR4.SA Data - yfinance]
-    C -->|Generate| E[artifacts/]
+    C -->|Generate| E[artifacts/models/]
     E -->|Package| F[artifacts.zip]
     F -->|Create| G[GitHub Release v1.0.X]
-    G -->|Trigger| H[GitHub Actions: Deploy]
+    G -->|Trigger| H[GitHub Actions: Deploy GCloud]
     H -->|Download| G
-    H -->|Build| I[Docker Image]
-    I -->|Push| J[GHCR - GitHub Container Registry]
-    J -->|Deploy| K[Render.com / Railway.app]
+    H -->|Build via Cloud Build| I[Backend + Frontend Images]
+    I -->|Push to| J[GCR - Google Container Registry]
+    J -->|Deploy to| K[Cloud Run - Backend + Frontend]
     K -->|Serve| L[Users/Frontend]
     
     style C fill:#4CAF50
@@ -54,18 +56,20 @@ graph TB
 ```
 .github/workflows/
 ├── train-weekly.yml         # Treino semanal automatizado
-└── deploy-api.yml           # Deploy após treino
+└── deploy-gcloud.yml        # Deploy GCloud Run (Backend + Frontend)
 
 scripts/
 ├── local_train.sh           # Treino local para dev
 ├── validate_artifacts.sh    # Validação de artifacts
-└── test_api_local.sh        # Teste API local
+├── test_api_local.sh        # Teste API local
+└── setup_gcloud.sh          # Setup automático GCP
 
 docs/
-└── DEPLOY_FREE_TIER.md      # Guia completo de deploy
+├── GCLOUD_DEPLOY.md         # Guia completo Google Cloud
+└── alternatives/
+    └── DEPLOY_FREE_TIER.md  # Alternativas (Render/Railway)
 
-render.yaml                  # Config Render.com
-railway.json                 # Config Railway.app
+cloudbuild.yaml              # Config Google Cloud Build
 artifacts/.gitkeep           # Placeholder (artifacts não versionados)
 ```
 
@@ -99,9 +103,9 @@ git push origin master
 ```
 
 **Artifacts gerados:**
-- `artifacts/model.pt` (~8MB)
-- `artifacts/scaler.pkl` (~5KB)
-- `artifacts/y_scaler.pkl` (~5KB)
+- `artifacts/models/best_model.pt` (~8MB)
+- `artifacts/models/scalers/scaler.pkl` (~5KB)
+- `artifacts/models/scalers/preprocessing_config.json` (~1KB)
 - `artifacts/metrics.json` (~1KB)
 
 ---
@@ -117,7 +121,7 @@ git push origin master
 2. Install PyTorch CPU (optimized)
 3. Install dependencies
 4. Train LSTM (PETR4.SA, 100 epochs)
-5. Validate artifacts
+5. Validate artifacts (`artifacts/models/best_model.pt` + scalers)
 6. Package artifacts.zip
 7. Create GitHub Release (v1.0.X)
 8. Upload artifacts.zip to Release
@@ -129,36 +133,46 @@ git push origin master
 
 ### **3️⃣ Deploy Automatizado (GitHub Actions)**
 
-**Trigger:** Após treino bem-sucedido
+**Trigger:** Após treino bem-sucedido ou push na master
 
-**Workflow:** `.github/workflows/deploy-api.yml`
+**Workflow:** `.github/workflows/deploy-gcloud.yml`
 
 **Steps:**
 1. Download artifacts from latest Release
-2. Build Docker image
-3. Push to GitHub Container Registry (GHCR)
-4. Trigger Render/Railway webhook
-5. Health check
+2. Build Backend via Cloud Build
+3. Deploy Backend to Cloud Run
+4. Build Frontend via Cloud Build
+5. Deploy Frontend to Cloud Run
+6. Health check (Backend + Frontend)
 
-**Tempo de execução:** ~5 minutos  
-**Custo:** $0 (GitHub Actions Free Tier)
+**Tempo de execução:** ~15-20 minutos  
+**Custo:** $0 (Free Tier) até $4-8/mês (produção)
 
 ---
 
-### **4️⃣ Produção (Render/Railway)**
+### **4️⃣ Produção (Google Cloud Run)**
 
-**Plataformas suportadas:**
+**Plataforma Principal:** Google Cloud Run
+
+| Componente | Configuração | Cold Start | Custo |
+|------------|--------------|------------|-------|
+| **Backend API** | 512MB RAM, 1 vCPU | ⚠️ Configurável (min-instances=0) | $3-5/mês |
+| **Frontend** | 256MB RAM, 1 vCPU | ⚠️ Configurável (min-instances=0) | $1-2/mês |
+| **Cloud Build** | 4 builds/mês | N/A | $0 (Free Tier) |
+| **Container Registry** | ~1GB storage | N/A | $0.02/mês |
+
+**Plataformas Alternativas (ver [docs/alternatives/DEPLOY_FREE_TIER.md](alternatives/DEPLOY_FREE_TIER.md)):**
 
 | Plataforma | Custo | RAM | CPU | Cold Start |
 |------------|-------|-----|-----|------------|
 | **Render Free** | $0/mês | 512MB | 0.1 shared | ❌ Sim (~30s) |
 | **Render Starter** | $7/mês | 512MB | 0.5 dedicated | ✅ Não |
 | **Railway Hobby** | $5/mês | 8GB | 8 shared | ✅ Não |
-| **GCloud Run** | Pay-per-use | 512MB-8GB | 1-4 vCPU | ⚠️ Configurável |
 
 **Recomendação:** 
-- **Protótipo/Teste:** Render Free
-- **Produção:** Railway Hobby ($5/mês)
+- **Produção (Oficial):** Google Cloud Run ($4-8/mês)
+- **Protótipo/Teste:** Render Free ($0)
+- **Alternativa Low-Cost:** Railway Hobby ($5/mês)
 
 ---
 
@@ -183,14 +197,16 @@ docker build -t stock-api:prod --build-arg DOWNLOAD_ARTIFACTS=true .
 
 ```dockerfile
 ARG DOWNLOAD_ARTIFACTS="true"
+ARG GITHUB_REPO="adriannylelis/stock-prediction-lstm-api"
 
-RUN if [ "$DOWNLOAD_ARTIFACTS" = "true" ]; then \
+RUN if [ "$DOWNLOAD_ARTIFACTS" = "true" ] && [ ! -f "artifacts/models/best_model.pt" ]; then \
         # Buscar última release via GitHub API
-        LATEST_RELEASE=$(curl -s https://api.github.com/repos/USER/REPO/releases/latest); \
+        LATEST_RELEASE=$(curl -s https://api.github.com/repos/$GITHUB_REPO/releases/latest); \
         DOWNLOAD_URL=$(echo $LATEST_RELEASE | jq -r '.assets[0].browser_download_url'); \
-        # Download e unzip
+        # Download e unzip para artifacts/models/
         curl -L -o artifacts.zip "$DOWNLOAD_URL" && \
-        unzip artifacts.zip -d artifacts/; \
+        mkdir -p artifacts/models && \
+        unzip artifacts.zip -d artifacts/models/; \
     else \
         echo "Using local artifacts (dev mode)"; \
     fi
@@ -212,10 +228,11 @@ v1.0.3 - Model Release (24/01/2026)
 
 ```
 artifacts.zip (10-20MB)
-├── model.pt           # Modelo LSTM treinado
-├── scaler.pkl         # MinMaxScaler de features
-├── y_scaler.pkl       # Scaler de target (opcional)
-└── metrics.json       # Métricas de treino (opcional)
+├── best_model.pt                          # Modelo LSTM treinado
+├── scalers/
+│   ├── scaler.pkl                         # MinMaxScaler de features (18 features)
+│   └── preprocessing_config.json          # Config de pré-processamento
+└── metrics.json                           # Métricas de treino (opcional)
 ```
 
 ### **Metadados:**
@@ -231,22 +248,22 @@ Cada Release contém descrição detalhada:
 
 ## 🔐 GitHub Secrets (Configurar)
 
-### **Obrigatórios:**
-
-Nenhum! O setup básico funciona sem secrets.
-
-### **Opcionais (para deploy automatizado):**
+### **Obrigatórios (para Google Cloud Run):**
 
 ```bash
-# Render.com
+# Google Cloud Platform
+GCP_PROJECT_ID=your-project-id           # ID do projeto GCP
+GCP_SA_KEY=<service-account-key-json>   # Chave JSON da Service Account
+```
+
+### **Opcionais (para deploy em plataformas alternativas):**
+
+```bash
+# Render.com (alternativa)
 RENDER_DEPLOY_HOOK=https://api.render.com/deploy/srv-xxxxx?key=yyyyy
 RENDER_URL=https://stock-api-petr4.onrender.com
 
-# Railway.app (não precisa, deploy é automático via GitHub)
-
-# GCloud Run (se usar)
-GCP_PROJECT_ID=your-project-id
-GCP_SA_KEY=<service-account-key-json-base64>
+# Railway.app (não precisa secrets, deploy é automático via GitHub)
 ```
 
 **Como adicionar:**
@@ -276,11 +293,15 @@ GCP_SA_KEY=<service-account-key-json-base64>
 1. **Actions** → **🤖 Train Model Weekly** → **Run workflow**
 2. Aguardar ~10 minutos
 3. Verificar Release criada
-4. **Actions** → **🚀 Deploy API** → **Run workflow**
-5. Aguardar ~5 minutos
-6. Testar API:
+4. **Actions** → **🌐 Deploy to Google Cloud** → **Run workflow**
+5. Aguardar ~15-20 minutos
+6. Obter URLs do Job Summary e testar:
    ```bash
-   curl https://your-app.onrender.com/health
+   # Backend
+   curl https://stock-api-backend-xxx-uc.a.run.app/health
+   
+   # Frontend
+   open https://stock-api-frontend-xxx-uc.a.run.app
    ```
 
 ### **3. Teste de Rollback**
@@ -382,10 +403,12 @@ TOTAL: $8/mês
 ## 📚 Referências e Documentação
 
 - [GitHub Actions Docs](https://docs.github.com/en/actions)
+- [Google Cloud Run Docs](https://cloud.google.com/run/docs)
+- [Google Cloud Build Docs](https://cloud.google.com/build/docs)
 - [Dockerfile Best Practices](https://docs.docker.com/develop/dev-best-practices/)
-- [Render Docs](https://render.com/docs)
-- [Railway Docs](https://docs.railway.app)
 - [PyTorch Production](https://pytorch.org/tutorials/beginner/saving_loading_models.html)
+- [GCLOUD_DEPLOY.md](GCLOUD_DEPLOY.md) - Guia completo de deploy na GCP
+- [alternatives/DEPLOY_FREE_TIER.md](alternatives/DEPLOY_FREE_TIER.md) - Alternativas Render/Railway
 
 ---
 

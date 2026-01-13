@@ -96,7 +96,6 @@ RUN if [ "$DOWNLOAD_ARTIFACTS" = "true" ]; then \
 
 ---
 
-### **8. Documentação Completa**
 ### **6. Documentação Completa**
 📁 `docs/`
 
@@ -104,6 +103,8 @@ RUN if [ "$DOWNLOAD_ARTIFACTS" = "true" ]; then \
 - ✅ `ARCHITECTURE_MLOPS.md` - Arquitetura MLOps detalhada
 - ✅ `QUICK_START_5MIN.md` - Setup rápido local
 - ✅ `alternatives/DEPLOY_FREE_TIER.md` - Alternativas (Render/Railway)
+
+> Para detalhes completos da arquitetura MLOps (incluindo cron de treino, GitHub Releases e alternativas como Render/Railway), use [docs/ARCHITECTURE_MLOPS.md](docs/ARCHITECTURE_MLOPS.md) como fonte principal.
 
 ---
 

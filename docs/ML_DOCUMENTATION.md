@@ -4,6 +4,8 @@
 
 Documentação completa das classes, métodos e pipelines do sistema de ML Engineering para previsão de ações.
 
+Os pipelines descritos aqui (ingestão de dados, feature engineering, treino, avaliação e predição) geram os artefatos de modelo (por exemplo, `model.pt` e scalers) consumidos pela API em `src/api` e pelos workflows de MLOps/CI/CD documentados em [ARCHITECTURE_MLOPS.md](ARCHITECTURE_MLOPS.md) e [GCLOUD_DEPLOY.md](GCLOUD_DEPLOY.md).
+
 ---
 
 ## 🏗️ Arquitetura de Componentes
