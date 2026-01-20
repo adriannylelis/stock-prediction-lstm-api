@@ -73,7 +73,8 @@ def test_split_data():
 
     # Check all are tensors
     assert all(
-        isinstance(t, torch.Tensor) for t in [X_train, y_train, X_val, y_val, X_test, y_test]
+        isinstance(t, torch.Tensor)
+        for t in [X_train, y_train, X_val, y_val, X_test, y_test]
     )
 
     # Check sizes

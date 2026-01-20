@@ -7,7 +7,9 @@ from pathlib import Path
 
 def run_command(cmd: list) -> str:
     """Run CLI command and return output."""
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=Path(__file__).parent.parent)
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, cwd=Path(__file__).parent.parent
+    )
     return result.stdout + result.stderr
 
 

@@ -57,17 +57,6 @@ jobs:
     name: Integration Tests (Firestore)
     runs-on: ubuntu-latest
     
-    services:
-      firestore:
-        image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
-        ports:
-          - 8080:8080
-        options: >-
-          --health-cmd "curl -f http://localhost:8080 || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -88,7 +77,18 @@ jobs:
       
       - name: 🔥 Start Firestore Emulator
         run: |
-          # Emulator já está rodando via services, apenas configurar variáveis
+          # Instalar gcloud emulators components
+          curl https://sdk.cloud.google.com | bash > /dev/null
+          exec -l $SHELL
+          gcloud components install cloud-firestore-emulator --quiet
+          
+          # Iniciar emulador em background
+          gcloud emulators firestore start --host-port=0.0.0.0:8080 &
+          
+          # Aguardar inicialização
+          sleep 10
+          
+          # Configurar variáveis
           echo "FIRESTORE_EMULATOR_HOST=localhost:8080" >> $GITHUB_ENV
           echo "GOOGLE_CLOUD_PROJECT=${{ env.FIRESTORE_PROJECT_ID }}" >> $GITHUB_ENV
           

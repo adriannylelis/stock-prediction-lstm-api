@@ -30,7 +30,10 @@ class StockDataIngestion:
     """
 
     def __init__(
-        self, ticker: str, start_date: str | datetime, end_date: Optional[str | datetime] = None
+        self,
+        ticker: str,
+        start_date: str | datetime,
+        end_date: Optional[str | datetime] = None,
     ) -> None:
         """Initialize the data ingestion handler.
 
@@ -107,7 +110,9 @@ class StockDataIngestion:
             )
 
             if df.empty:
-                raise ValueError(f"No data downloaded for {self.ticker}. Check ticker symbol.")
+                raise ValueError(
+                    f"No data downloaded for {self.ticker}. Check ticker symbol."
+                )
 
             # Simplify multi-level columns if present
             if isinstance(df.columns, pd.MultiIndex):
@@ -196,7 +201,9 @@ class StockDataIngestion:
 
 
 def download_multiple_tickers(
-    tickers: list[str], start_date: str | datetime, end_date: Optional[str | datetime] = None
+    tickers: list[str],
+    start_date: str | datetime,
+    end_date: Optional[str | datetime] = None,
 ) -> dict[str, pd.DataFrame]:
     """Download data for multiple tickers.
 

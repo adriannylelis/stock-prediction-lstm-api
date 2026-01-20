@@ -100,7 +100,9 @@ class EarlyStopping:
             self.best_epoch = epoch
             self.counter = 0
             if self.verbose:
-                logger.info(f"Epoch {epoch}: Score improved by {improvement:.6f} to {score:.6f}")
+                logger.info(
+                    f"Epoch {epoch}: Score improved by {improvement:.6f} to {score:.6f}"
+                )
             return False
         else:
             self.counter += 1

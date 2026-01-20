@@ -7,6 +7,7 @@ import requests
 
 BASE_URL = "http://localhost:5000"
 
+
 @pytest.fixture(scope="module", autouse=True)
 def wait_for_api():
     """Aguardar API estar pronta antes dos testes."""
@@ -21,11 +22,13 @@ def wait_for_api():
             time.sleep(1)
     pytest.skip("API não está rodando em localhost:5000")
 
+
 def print_test_header(test_name):
     """Imprime cabeçalho de teste."""
     print("\n" + "=" * 70)
     print(f"  {test_name}")
     print("=" * 70)
+
 
 def print_response(response):
     """Imprime resposta formatada."""
@@ -36,69 +39,62 @@ def print_response(response):
     except:
         print(response.text)
 
+
 def test_missing_content_type():
     print_test_header("TEST 1: Missing Content-Type")
 
-    response = requests.post(
-        f"{BASE_URL}/predict",
-        data="invalid data"
-    )
+    response = requests.post(f"{BASE_URL}/predict", data="invalid data")
     print_response(response)
     assert response.status_code == 400, f"Esperado 400, recebido {response.status_code}"
     print("✅ PASSED: Content-Type validation working")
 
+
 def test_missing_ticker():
     print_test_header("TEST 2: Missing Ticker Field")
 
-    response = requests.post(
-        f"{BASE_URL}/predict",
-        json={}
-    )
+    response = requests.post(f"{BASE_URL}/predict", json={})
     print_response(response)
     assert response.status_code == 400, f"Esperado 400, recebido {response.status_code}"
     print("✅ PASSED: Missing ticker validation working")
+
 
 def test_invalid_ticker_format():
     print_test_header("TEST 3: Invalid Ticker Format")
 
     # Ticker muito curto
-    response = requests.post(
-        f"{BASE_URL}/predict",
-        json={"ticker": "A"}
-    )
+    response = requests.post(f"{BASE_URL}/predict", json={"ticker": "A"})
     print_response(response)
     assert response.status_code == 400, f"Esperado 400, recebido {response.status_code}"
     assert "error" in response.json()
     print("✅ PASSED: Invalid ticker format validation working")
 
+
 def test_ticker_not_found():
     print_test_header("TEST 4: Ticker Not Found (404)")
 
-    response = requests.post(
-        f"{BASE_URL}/predict",
-        json={"ticker": "INVALIDTICKER123"}
-    )
+    response = requests.post(f"{BASE_URL}/predict", json={"ticker": "INVALIDTICKER123"})
     print_response(response)
-    assert response.status_code in [400, 404], f"Esperado 400 ou 404, recebido {response.status_code}"
+    assert response.status_code in [
+        400,
+        404,
+    ], f"Esperado 400 ou 404, recebido {response.status_code}"
     print(f"✅ PASSED: Ticker not found handled correctly ({response.status_code})")
+
 
 def test_insufficient_data():
     print_test_header("TEST 5: Insufficient Data (400)")
 
     response = requests.post(
-        f"{BASE_URL}/predict",
-        json={"ticker": "NEWIPO"}  # Exemplo de IPO recente
+        f"{BASE_URL}/predict", json={"ticker": "NEWIPO"}  # Exemplo de IPO recente
     )
     print_response(response)
     print(f"Status: {response.status_code} (pode variar dependendo do ticker)")
 
+
 def test_successful_prediction():
     print_test_header("TEST 6: Successful Prediction (200)")
 
-    response = requests.post(
-        f"{BASE_URL}/predict",
-        json={"ticker": "AAPL"}
-    )
+    response = requests.post(f"{BASE_URL}/predict", json={"ticker": "AAPL"})
     print_response(response)
     assert response.status_code == 200, f"Esperado 200, recebido {response.status_code}"
 
@@ -109,13 +105,18 @@ def test_successful_prediction():
 
     result = data["data"]
     required_fields = [
-        "ticker", "predicted_price", "current_price",
-        "change_percent", "prediction_date", "confidence"
+        "ticker",
+        "predicted_price",
+        "current_price",
+        "change_percent",
+        "prediction_date",
+        "confidence",
     ]
     for field in required_fields:
         assert field in result, f"Campo '{field}' ausente na resposta"
 
     print("✅ PASSED: Successful prediction with all required fields")
+
 
 def test_endpoint_not_found():
     print_test_header("TEST 7: Endpoint Not Found (404)")
@@ -125,6 +126,7 @@ def test_endpoint_not_found():
     assert response.status_code == 404, f"Esperado 404, recebido {response.status_code}"
     print("✅ PASSED: 404 handler working")
 
+
 def test_method_not_allowed():
     print_test_header("TEST 8: Method Not Allowed (405)")
 
@@ -133,6 +135,7 @@ def test_method_not_allowed():
     print_response(response)
     assert response.status_code == 405, f"Esperado 405, recebido {response.status_code}"
     print("✅ PASSED: 405 handler working")
+
 
 def run_all_tests():
     print("\n" + "#" * 70)
@@ -180,6 +183,7 @@ def run_all_tests():
     print(f"❌ Falhou: {failed}")
     print(f"Taxa de sucesso: {(passed/len(tests))*100:.1f}%")
     print("=" * 70 + "\n")
+
 
 if __name__ == "__main__":
     run_all_tests()

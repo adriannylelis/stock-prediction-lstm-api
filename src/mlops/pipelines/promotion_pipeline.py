@@ -23,6 +23,7 @@ from src.mlops.monitoring.model_comparator import ModelComparator
 @dataclass
 class PromotionResult:
     """Result of promotion pipeline."""
+
     promoted: bool
     deployed: bool
     new_version: Optional[int]
@@ -41,9 +42,9 @@ class PromotionResult:
 
 class AutoPromotionPipeline:
     """Automated model promotion pipeline.
-    
+
     Compares new model against production, promotes if better based on criteria.
-    
+
     Args:
         new_model_version: Version number of new model to evaluate
         model_name: MLflow model name (default: lstm-multi-ticker)
@@ -55,7 +56,7 @@ class AutoPromotionPipeline:
             - max_mae: Maximum absolute MAE (default: 0.04)
         auto_deploy: Whether to auto-deploy if promoted (default: True)
         tracking_uri: MLflow tracking URI
-    
+
     Example:
         >>> pipeline = AutoPromotionPipeline(
         ...     new_model_version=5,
@@ -88,10 +89,10 @@ class AutoPromotionPipeline:
 
         # Default criteria
         default_criteria = {
-            "r2_improvement": 0.05,      # 5% better
-            "mae_improvement": 0.02,     # 2% better
-            "min_r2": 0.15,              # Minimum R²
-            "max_mae": 0.04,             # Maximum MAE
+            "r2_improvement": 0.05,  # 5% better
+            "mae_improvement": 0.02,  # 2% better
+            "min_r2": 0.15,  # Minimum R²
+            "max_mae": 0.04,  # Maximum MAE
         }
         self.criteria = {**default_criteria, **(auto_promote_criteria or {})}
 
@@ -105,7 +106,9 @@ class AutoPromotionPipeline:
 
         logger.info("AutoPromotionPipeline initialized")
         logger.info(f"  New model: {self.new_model_uri}")
-        logger.info(f"  Production: {self.production_model_uri or 'None (first deployment)'}")
+        logger.info(
+            f"  Production: {self.production_model_uri or 'None (first deployment)'}"
+        )
 
     def _get_production_model_uri(self) -> Optional[str]:
         """Get current production model from config or MLflow."""
@@ -128,16 +131,14 @@ class AutoPromotionPipeline:
         return None
 
     def _should_promote(
-        self,
-        new_metrics: dict,
-        prod_metrics: Optional[dict]
+        self, new_metrics: dict, prod_metrics: Optional[dict]
     ) -> tuple[bool, str]:
         """Determine if new model should be promoted.
-        
+
         Args:
             new_metrics: Metrics from new model
             prod_metrics: Metrics from production model (None if no production)
-            
+
         Returns:
             (should_promote, reason)
         """
@@ -157,8 +158,12 @@ class AutoPromotionPipeline:
         mae_new = new_metrics["mae"]
 
         # Calculate improvements
-        r2_improvement = (r2_new - r2_current) / abs(r2_current) if r2_current != 0 else 0
-        mae_improvement = (mae_current - mae_new) / mae_current if mae_current != 0 else 0
+        r2_improvement = (
+            (r2_new - r2_current) / abs(r2_current) if r2_current != 0 else 0
+        )
+        mae_improvement = (
+            (mae_current - mae_new) / mae_current if mae_current != 0 else 0
+        )
 
         # Check if improvements meet thresholds
         r2_better = r2_improvement >= self.criteria["r2_improvement"]
@@ -177,9 +182,13 @@ class AutoPromotionPipeline:
         else:
             reasons = []
             if not r2_better:
-                reasons.append(f"R² improvement {r2_improvement*100:.1f}% < {self.criteria['r2_improvement']*100}%")
+                reasons.append(
+                    f"R² improvement {r2_improvement*100:.1f}% < {self.criteria['r2_improvement']*100}%"
+                )
             if not mae_better:
-                reasons.append(f"MAE improvement {mae_improvement*100:.1f}% < {self.criteria['mae_improvement']*100}%")
+                reasons.append(
+                    f"MAE improvement {mae_improvement*100:.1f}% < {self.criteria['mae_improvement']*100}%"
+                )
             if not r2_acceptable:
                 reasons.append(f"R² {r2_new:.4f} < {self.criteria['min_r2']}")
             if not mae_acceptable:
@@ -189,7 +198,7 @@ class AutoPromotionPipeline:
 
     def _promote_model(self) -> bool:
         """Promote model to Production stage in MLflow.
-        
+
         Returns:
             True if successful
         """
@@ -199,9 +208,11 @@ class AutoPromotionPipeline:
                 name=self.model_name,
                 version=self.new_model_version,
                 stage="Production",
-                archive_existing_versions=True  # Archive old Production versions
+                archive_existing_versions=True,  # Archive old Production versions
             )
-            logger.success(f"✅ Model v{self.new_model_version} promoted to Production stage")
+            logger.success(
+                f"✅ Model v{self.new_model_version} promoted to Production stage"
+            )
             return True
         except Exception as e:
             logger.error(f"❌ Failed to promote model: {e}")
@@ -209,7 +220,7 @@ class AutoPromotionPipeline:
 
     def run_with_deploy(self) -> PromotionResult:
         """Run promotion pipeline with optional deployment.
-        
+
         Returns:
             PromotionResult with promotion decision and deployment status
         """
@@ -236,7 +247,11 @@ class AutoPromotionPipeline:
 
             # Extract metrics
             new_model_metrics = comparison_report.models[0]
-            prod_model_metrics = comparison_report.models[1] if len(comparison_report.models) > 1 else None
+            prod_model_metrics = (
+                comparison_report.models[1]
+                if len(comparison_report.models) > 1
+                else None
+            )
 
             new_metrics = {
                 "mae": new_model_metrics.mae,
@@ -245,12 +260,16 @@ class AutoPromotionPipeline:
                 "mape": new_model_metrics.mape,
             }
 
-            prod_metrics = {
-                "mae": prod_model_metrics.mae,
-                "rmse": prod_model_metrics.rmse,
-                "r2": prod_model_metrics.r2,
-                "mape": prod_model_metrics.mape,
-            } if prod_model_metrics else None
+            prod_metrics = (
+                {
+                    "mae": prod_model_metrics.mae,
+                    "rmse": prod_model_metrics.rmse,
+                    "r2": prod_model_metrics.r2,
+                    "mape": prod_model_metrics.mape,
+                }
+                if prod_model_metrics
+                else None
+            )
 
             # 2. Decide if should promote
             logger.info("\n🤔 Step 2/3: Evaluating promotion criteria...")
@@ -264,14 +283,13 @@ class AutoPromotionPipeline:
                     promoted=False,
                     deployed=False,
                     new_version=self.new_model_version,
-                    old_version=prod_model_metrics.version if prod_model_metrics else None,
+                    old_version=(
+                        prod_model_metrics.version if prod_model_metrics else None
+                    ),
                     new_model_uri=self.new_model_uri,
                     old_model_uri=self.production_model_uri,
-                    comparison={
-                        "new": new_metrics,
-                        "production": prod_metrics
-                    },
-                    reason=reason
+                    comparison={"new": new_metrics, "production": prod_metrics},
+                    reason=reason,
                 )
 
             # 3. Promote
@@ -283,12 +301,14 @@ class AutoPromotionPipeline:
                     promoted=False,
                     deployed=False,
                     new_version=self.new_model_version,
-                    old_version=prod_model_metrics.version if prod_model_metrics else None,
+                    old_version=(
+                        prod_model_metrics.version if prod_model_metrics else None
+                    ),
                     new_model_uri=self.new_model_uri,
                     old_model_uri=self.production_model_uri,
                     comparison={"new": new_metrics, "production": prod_metrics},
                     reason="Promotion failed",
-                    error="Failed to update MLflow stage"
+                    error="Failed to update MLflow stage",
                 )
 
             # 4. Deploy (if auto_deploy)
@@ -302,13 +322,15 @@ class AutoPromotionPipeline:
                         "version": self.new_model_version,
                         "metrics": new_metrics,
                         "promoted_from": "Staging",
-                        "reason": reason
-                    }
+                        "reason": reason,
+                    },
                 )
                 deployed = deploy_result.success
 
                 if not deployed:
-                    logger.warning(f"⚠️ Promotion succeeded but deployment failed: {deploy_result.error}")
+                    logger.warning(
+                        f"⚠️ Promotion succeeded but deployment failed: {deploy_result.error}"
+                    )
 
             logger.success("\n" + "=" * 80)
             logger.success("✅ Promotion Pipeline Completed!")
@@ -327,12 +349,32 @@ class AutoPromotionPipeline:
                 comparison={
                     "new": new_metrics,
                     "production": prod_metrics,
-                    "improvements": {
-                        "r2": ((new_metrics["r2"] - prod_metrics["r2"]) / abs(prod_metrics["r2"]) * 100) if prod_metrics else 0,
-                        "mae": ((prod_metrics["mae"] - new_metrics["mae"]) / prod_metrics["mae"] * 100) if prod_metrics else 0,
-                    } if prod_metrics else {}
+                    "improvements": (
+                        {
+                            "r2": (
+                                (
+                                    (new_metrics["r2"] - prod_metrics["r2"])
+                                    / abs(prod_metrics["r2"])
+                                    * 100
+                                )
+                                if prod_metrics
+                                else 0
+                            ),
+                            "mae": (
+                                (
+                                    (prod_metrics["mae"] - new_metrics["mae"])
+                                    / prod_metrics["mae"]
+                                    * 100
+                                )
+                                if prod_metrics
+                                else 0
+                            ),
+                        }
+                        if prod_metrics
+                        else {}
+                    ),
                 },
-                reason=reason
+                reason=reason,
             )
 
         except Exception as e:
@@ -347,7 +389,7 @@ class AutoPromotionPipeline:
                 old_model_uri=self.production_model_uri,
                 comparison=None,
                 reason="Pipeline error",
-                error=str(e)
+                error=str(e),
             )
 
 

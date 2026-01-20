@@ -1,3 +1,3 @@
 from .lstm import StockLSTM
 
-__all__ = ['StockLSTM']
+__all__ = ["StockLSTM"]

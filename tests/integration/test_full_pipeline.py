@@ -104,17 +104,24 @@ class TestFullPipeline:
 
     def test_data_versioning_workflow(self, temp_data_dir):
         """Test data versioning and loading workflow."""
-        manager = DataVersionManager(base_path=temp_data_dir, auto_cleanup=True, max_versions=3)
+        manager = DataVersionManager(
+            base_path=temp_data_dir, auto_cleanup=True, max_versions=3
+        )
 
         # Create and save test data
         test_data = pd.DataFrame(
-            {"Close": np.random.random(100), "Volume": np.random.randint(1000, 10000, 100)}
+            {
+                "Close": np.random.random(100),
+                "Volume": np.random.randint(1000, 10000, 100),
+            }
         )
 
         # Save multiple versions
         versions = []
         for i in range(5):
-            version = manager.save(test_data, ticker="TEST.SA", metadata={"iteration": i})
+            version = manager.save(
+                test_data, ticker="TEST.SA", metadata={"iteration": i}
+            )
             versions.append(version)
 
         # Check auto-cleanup (should keep only 3)
@@ -125,7 +132,6 @@ class TestFullPipeline:
         loaded_df = manager.load_latest("TEST.SA")
         assert len(loaded_df) == 100
         assert "Close" in loaded_df.columns
-
 
     def test_artifact_manager_workflow(self, temp_artifacts_dir):
         """Test artifact management workflow."""

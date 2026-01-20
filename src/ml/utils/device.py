@@ -47,7 +47,9 @@ def print_device_info(device: torch.device) -> None:
     if device.type == "cuda":
         print(f"GPU Name: {torch.cuda.get_device_name(0)}")
         print(f"CUDA Version: {torch.version.cuda}")
-        print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
+        print(
+            f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB"
+        )
         print(f"Number of GPUs: {torch.cuda.device_count()}")
         print("\n🚀 TRAINING WILL USE GPU (10-50x faster!)")
     else:

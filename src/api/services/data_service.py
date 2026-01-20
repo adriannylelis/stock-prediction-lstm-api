@@ -7,7 +7,7 @@ import logging
 from src.api.utils.exceptions import (
     TickerNotFoundError,
     InsufficientDataError,
-    ServiceUnavailableError
+    ServiceUnavailableError,
 )
 
 logger = logging.getLogger(__name__)
@@ -15,38 +15,42 @@ logger = logging.getLogger(__name__)
 
 class DataService:
     """Busca dados históricos via Yahoo Finance."""
-    
+
     def __init__(self, lookback_days: int = 60, min_days: int = 30):
         self.lookback_days = lookback_days
         self.min_days = min_days
-    
+
     def fetch_data(self, ticker: str) -> pd.DataFrame:
         try:
             end_date = datetime.now()
-            start_date = end_date - timedelta(days=self.lookback_days + 60)  # +60 para compensar fins de semana/feriados
-            
-            logger.info(f"Buscando dados para {ticker} de {start_date.date()} a {end_date.date()}")
-            
+            start_date = end_date - timedelta(
+                days=self.lookback_days + 60
+            )  # +60 para compensar fins de semana/feriados
+
+            logger.info(
+                f"Buscando dados para {ticker} de {start_date.date()} a {end_date.date()}"
+            )
+
             stock = yf.Ticker(ticker)
             df = stock.history(start=start_date, end=end_date)
-            
+
             if df.empty:
                 raise TickerNotFoundError(ticker)
-            
+
             if len(df) < self.min_days:
                 raise InsufficientDataError(
-                    ticker=ticker,
-                    days_available=len(df),
-                    days_required=self.min_days
+                    ticker=ticker, days_available=len(df), days_required=self.min_days
                 )
-            
+
             if len(df) > self.lookback_days:
                 df = df.tail(self.lookback_days)
-            
-            logger.info(f"Dados obtidos: {len(df)} registros, último preço: {df['Close'].iloc[-1]:.2f}")
-            
+
+            logger.info(
+                f"Dados obtidos: {len(df)} registros, último preço: {df['Close'].iloc[-1]:.2f}"
+            )
+
             return df
-            
+
         except (TickerNotFoundError, InsufficientDataError):
             raise
         except ConnectionError as e:
@@ -60,11 +64,13 @@ class DataService:
             if "connection" in str(e).lower() or "timeout" in str(e).lower():
                 raise ServiceUnavailableError(service="Yahoo Finance")
             raise TickerNotFoundError(ticker)
-    
+
     def get_latest_price(self, ticker: str) -> Optional[float]:
         try:
             df = self.fetch_data(ticker)
-            return float(df['Close'].iloc[-1])
+            return float(df["Close"].iloc[-1])
         except Exception as e:
-            logger.warning(f"Não foi possível obter último preço para {ticker}: {str(e)}")
+            logger.warning(
+                f"Não foi possível obter último preço para {ticker}: {str(e)}"
+            )
             return None

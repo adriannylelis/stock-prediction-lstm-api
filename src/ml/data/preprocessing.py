@@ -57,7 +57,9 @@ class StockPreprocessor:
             ValueError: If ratios don't sum to 1.0.
         """
         if not np.isclose(train_ratio + val_ratio + test_ratio, 1.0):
-            raise ValueError(f"Ratios must sum to 1.0, got {train_ratio + val_ratio + test_ratio}")
+            raise ValueError(
+                f"Ratios must sum to 1.0, got {train_ratio + val_ratio + test_ratio}"
+            )
 
         self.lookback_period = lookback_period
         self.feature_cols = feature_cols or ["Close"]
@@ -160,13 +162,20 @@ class StockPreprocessor:
         # Target é o próximo valor após cada sequência
         y = data_tensor[lookback:, 0]  # Predict first feature (Close price)
 
-        logger.debug(f"Created sequences with PyTorch: X shape={X.shape}, y shape={y.shape}")
+        logger.debug(
+            f"Created sequences with PyTorch: X shape={X.shape}, y shape={y.shape}"
+        )
 
         return X, y
 
-    def split_data(
-        self, X: torch.Tensor, y: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def split_data(self, X: torch.Tensor, y: torch.Tensor) -> Tuple[
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+    ]:
         """Split data into train/validation/test sets using PyTorch.
 
         Uses chronological split (no shuffling) to maintain time series order.

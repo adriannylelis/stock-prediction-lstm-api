@@ -7,28 +7,33 @@ from flask_cors import CORS
 def create_app(config=None):
     app = Flask(__name__)
 
-    app.config.update({
-        'JSON_SORT_KEYS': False,
-        'JSONIFY_PRETTYPRINT_REGULAR': True,
-        'MAX_CONTENT_LENGTH': 16 * 1024 * 1024,  # 16MB max
-    })
+    app.config.update(
+        {
+            "JSON_SORT_KEYS": False,
+            "JSONIFY_PRETTYPRINT_REGULAR": True,
+            "MAX_CONTENT_LENGTH": 16 * 1024 * 1024,  # 16MB max
+        }
+    )
 
     if config:
         app.config.update(config)
 
     # Configurar CORS
-    CORS(app, resources={
-        r"/*": {
-            "origins": "*",
-            "methods": ["GET", "POST", "OPTIONS"],
-            "allow_headers": ["Content-Type"]
-        }
-    })
+    CORS(
+        app,
+        resources={
+            r"/*": {
+                "origins": "*",
+                "methods": ["GET", "POST", "OPTIONS"],
+                "allow_headers": ["Content-Type"],
+            }
+        },
+    )
 
     # Configurar logging
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
     register_blueprints(app)
@@ -98,49 +103,65 @@ def register_error_handlers(app):
     # Handlers para erros HTTP padrão
     @app.errorhandler(404)
     def not_found(error):
-        return jsonify({
-            "error": "Not Found",
-            "message": "O endpoint solicitado não existe",
-            "status": 404
-        }), 404
+        return (
+            jsonify(
+                {
+                    "error": "Not Found",
+                    "message": "O endpoint solicitado não existe",
+                    "status": 404,
+                }
+            ),
+            404,
+        )
 
     @app.errorhandler(405)
     def method_not_allowed(error):
-        return jsonify({
-            "error": "Method Not Allowed",
-            "message": "Método HTTP não permitido para este endpoint",
-            "status": 405
-        }), 405
+        return (
+            jsonify(
+                {
+                    "error": "Method Not Allowed",
+                    "message": "Método HTTP não permitido para este endpoint",
+                    "status": 405,
+                }
+            ),
+            405,
+        )
 
     @app.errorhandler(500)
     def internal_error(error):
         app.logger.error(f"Erro interno: {str(error)}")
-        return jsonify({
-            "error": "Internal Server Error",
-            "message": "Erro interno do servidor",
-            "status": 500
-        }), 500
+        return (
+            jsonify(
+                {
+                    "error": "Internal Server Error",
+                    "message": "Erro interno do servidor",
+                    "status": 500,
+                }
+            ),
+            500,
+        )
 
     @app.errorhandler(Exception)
     def handle_exception(error):
         app.logger.error(f"Exceção não tratada: {str(error)}", exc_info=True)
-        return jsonify({
-            "error": "Internal Server Error",
-            "message": "Ocorreu um erro inesperado",
-            "status": 500
-        }), 500
+        return (
+            jsonify(
+                {
+                    "error": "Internal Server Error",
+                    "message": "Ocorreu um erro inesperado",
+                    "status": 500,
+                }
+            ),
+            500,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import os
 
     # Use PORT env var, default to 5001
     # Note: Can be overridden via FLASK_PORT or PORT env vars
-    port = int(os.environ.get('FLASK_PORT', os.environ.get('PORT', 5001)))
+    port = int(os.environ.get("FLASK_PORT", os.environ.get("PORT", 5001)))
 
     app = create_app()
-    app.run(
-        host='0.0.0.0',
-        port=port,
-        debug=True
-    )
+    app.run(host="0.0.0.0", port=port, debug=True)

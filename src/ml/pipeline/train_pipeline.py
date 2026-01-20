@@ -22,20 +22,20 @@ from ..utils.seed import set_seed
 
 class TrainPipeline:
     """MLflow-first training pipeline with multi-ticker support.
-    
+
     Supports two modes:
     1. Single-ticker: Traditional training for one stock
     2. Multi-ticker: Unified model for multiple stocks using ticker embeddings
-    
+
     Architecture:
     - MLflow = Source of truth (models, scalers, configs, metrics)
     - Local artifacts = Minimal fallback only (best_model.pt)
     - Automatic cleanup of old checkpoints
-    
+
     Example (single-ticker):
         >>> pipeline = TrainPipeline(ticker="PETR4.SA")
         >>> results = pipeline.run()
-    
+
     Example (multi-ticker):
         >>> pipeline = TrainPipeline(tickers=["PETR4.SA", "VALE3.SA"])
         >>> results = pipeline.run()
@@ -71,7 +71,7 @@ class TrainPipeline:
         device: Optional[str] = None,
     ):
         """Initialize training pipeline.
-        
+
         Args:
             ticker: Single ticker (for single-ticker mode)
             tickers: List of tickers (for multi-ticker mode)
@@ -111,7 +111,9 @@ class TrainPipeline:
         if tickers:
             unique_tickers = sorted(list(set(tickers)))
             if len(unique_tickers) != len(tickers):
-                logger.warning(f"Removed {len(tickers) - len(unique_tickers)} duplicate tickers. Using {len(unique_tickers)} unique tickers.")
+                logger.warning(
+                    f"Removed {len(tickers) - len(unique_tickers)} duplicate tickers. Using {len(unique_tickers)} unique tickers."
+                )
             self.tickers = unique_tickers
         else:
             self.tickers = [ticker]
@@ -139,7 +141,9 @@ class TrainPipeline:
         # MLflow
         self.tracking_uri = f"file:{Path.cwd()}/{tracking_uri.replace('file:', '')}"
         self.experiment_name = experiment_name or (
-            "lstm-multi-ticker" if self.is_multi_ticker else f"lstm-{ticker.replace('.SA', '').lower()}"
+            "lstm-multi-ticker"
+            if self.is_multi_ticker
+            else f"lstm-{ticker.replace('.SA', '').lower()}"
         )
 
         # Paths
@@ -160,7 +164,9 @@ class TrainPipeline:
         logger.info(f"{'='*80}")
         logger.info("🚀 Initialized TrainPipeline")
         logger.info(f"{'='*80}")
-        logger.info(f"Mode: {'Multi-ticker' if self.is_multi_ticker else 'Single-ticker'}")
+        logger.info(
+            f"Mode: {'Multi-ticker' if self.is_multi_ticker else 'Single-ticker'}"
+        )
         logger.info(f"Tickers: {', '.join(self.tickers)}")
         logger.info(f"Experiment: {self.experiment_name}")
         logger.info(f"Tracking URI: {self.tracking_uri}")
@@ -168,7 +174,7 @@ class TrainPipeline:
 
     def run(self) -> Dict:
         """Execute full training pipeline.
-        
+
         Returns:
             Dictionary with training results and metrics
         """
@@ -217,16 +223,20 @@ class TrainPipeline:
             preprocessing_config["ticker_to_id"] = self.data["ticker_to_id"]
             preprocessing_config["ticker_list"] = list(self.data["ticker_to_id"].keys())
 
-        with open(preprocessing_config_path, 'w') as f:
+        with open(preprocessing_config_path, "w") as f:
             json.dump(preprocessing_config, f, indent=2)
         logger.info(f"💾 Saved preprocessing config: {preprocessing_config_path}")
 
         # 5. Create trainer and train
         self.trainer = self._create_trainer()
-        training_history = self.trainer.train(train_loader, val_loader, epochs=self.epochs)
+        training_history = self.trainer.train(
+            train_loader, val_loader, epochs=self.epochs
+        )
 
         # 5. Calculate test metrics (use y_scaler for denormalization)
-        y_scaler = self.data.get("y_scaler", self.data.get("scaler"))  # Fallback to old scaler
+        y_scaler = self.data.get(
+            "y_scaler", self.data.get("scaler")
+        )  # Fallback to old scaler
         test_metrics = self.trainer.evaluate(test_loader, scaler=y_scaler)
 
         # 6. Get actual saved model path (Trainer saves as best_model.pt)
@@ -238,12 +248,14 @@ class TrainPipeline:
             "training_history": training_history,
             "test_metrics": test_metrics,
             "metadata": {
-                "ticker": self.ticker if not self.is_multi_ticker else ", ".join(self.tickers),
+                "ticker": (
+                    self.ticker if not self.is_multi_ticker else ", ".join(self.tickers)
+                ),
                 "epochs_trained": len(training_history["epoch"]),
                 "best_val_loss": min(training_history["val_loss"]),
                 "num_tickers": self.data["num_tickers"],
                 "lookback": self.lookback,
-            }
+            },
         }
 
         # 8. Cleanup old checkpoints
@@ -254,7 +266,7 @@ class TrainPipeline:
 
     def _prepare_data(self) -> Dict:
         """Prepare data for training (single or multi-ticker).
-        
+
         Returns:
             Dictionary with train/val/test splits and metadata
         """
@@ -268,10 +280,7 @@ class TrainPipeline:
         logger.info(f"📊 Preparing data for {self.ticker}...")
 
         # Ingest data
-        ingestion = StockDataIngestion(
-            ticker=self.ticker,
-            start_date=self.start_date
-        )
+        ingestion = StockDataIngestion(ticker=self.ticker, start_date=self.start_date)
         df = ingestion.download_and_validate()
 
         # Feature engineering (using only SMA_20 and SMA_50 to match API with 60-day window)
@@ -342,7 +351,9 @@ class TrainPipeline:
                 logger.info(f"[{idx}/{len(self.tickers)}] Processing {ticker}...")
 
                 # Ingest
-                ingestion = StockDataIngestion(ticker=ticker, start_date=self.start_date)
+                ingestion = StockDataIngestion(
+                    ticker=ticker, start_date=self.start_date
+                )
                 df = ingestion.download_and_validate()
 
                 # Feature engineering
@@ -381,15 +392,20 @@ class TrainPipeline:
                 # ✅ CRITICAL FIX: Normalize y (target) separately
                 # y is the Close price (column 0), needs its own scaler [0,1]
                 from sklearn.preprocessing import MinMaxScaler
+
                 y_scaler = MinMaxScaler(feature_range=(0, 1))
                 y_normalized = y_scaler.fit_transform(y.reshape(-1, 1)).flatten()
 
                 # Convert to tensors
                 X_tensor = torch.FloatTensor(X_normalized).to(self.device)
-                y_tensor = torch.FloatTensor(y_normalized).to(self.device)  # Already 1D, no unsqueeze needed
+                y_tensor = torch.FloatTensor(y_normalized).to(
+                    self.device
+                )  # Already 1D, no unsqueeze needed
 
                 # Create ticker IDs
-                ticker_id_tensor = torch.full((len(X_tensor),), ticker_to_id[ticker], dtype=torch.long).to(self.device)
+                ticker_id_tensor = torch.full(
+                    (len(X_tensor),), ticker_to_id[ticker], dtype=torch.long
+                ).to(self.device)
 
                 all_sequences_X.append(X_tensor)
                 all_sequences_y.append(y_tensor)
@@ -432,15 +448,17 @@ class TrainPipeline:
         y_train = y_shuffled[:n_train]
         ticker_ids_train = ticker_ids_shuffled[:n_train]
 
-        X_val = X_shuffled[n_train:n_train + n_val]
-        y_val = y_shuffled[n_train:n_train + n_val]
-        ticker_ids_val = ticker_ids_shuffled[n_train:n_train + n_val]
+        X_val = X_shuffled[n_train : n_train + n_val]
+        y_val = y_shuffled[n_train : n_train + n_val]
+        ticker_ids_val = ticker_ids_shuffled[n_train : n_train + n_val]
 
-        X_test = X_shuffled[n_train + n_val:]
-        y_test = y_shuffled[n_train + n_val:]
-        ticker_ids_test = ticker_ids_shuffled[n_train + n_val:]
+        X_test = X_shuffled[n_train + n_val :]
+        y_test = y_shuffled[n_train + n_val :]
+        ticker_ids_test = ticker_ids_shuffled[n_train + n_val :]
 
-        logger.success(f"✓ Split: Train={len(X_train)}, Val={len(X_val)}, Test={len(X_test)}\n")
+        logger.success(
+            f"✓ Split: Train={len(X_train)}, Val={len(X_val)}, Test={len(X_test)}\n"
+        )
 
         return {
             "X_train": X_train,
@@ -452,8 +470,12 @@ class TrainPipeline:
             "X_test": X_test,
             "y_test": y_test,
             "ticker_ids_test": ticker_ids_test,
-            "scaler": scalers_list[0] if scalers_list else None,  # X features scaler (for compatibility)
-            "y_scaler": y_scalers_list[0] if y_scalers_list else None,  # y target scaler (CRITICAL for denormalization)
+            "scaler": (
+                scalers_list[0] if scalers_list else None
+            ),  # X features scaler (for compatibility)
+            "y_scaler": (
+                y_scalers_list[0] if y_scalers_list else None
+            ),  # y target scaler (CRITICAL for denormalization)
             "ticker_to_id": ticker_to_id,
             "num_tickers": len(self.tickers),
             "num_features": X_combined.shape[2],
@@ -475,7 +497,7 @@ class TrainPipeline:
             hidden_size=self.hidden_size,
             num_layers=self.num_layers,
             dropout=self.dropout,
-            device=self.device
+            device=self.device,
         )
 
         logger.info(f"  - Num tickers: {self.data['num_tickers']}")
@@ -495,39 +517,41 @@ class TrainPipeline:
             train_dataset = TensorDataset(
                 self.data["X_train"],
                 self.data["y_train"],
-                self.data["ticker_ids_train"]
+                self.data["ticker_ids_train"],
             )
             val_dataset = TensorDataset(
-                self.data["X_val"],
-                self.data["y_val"],
-                self.data["ticker_ids_val"]
+                self.data["X_val"], self.data["y_val"], self.data["ticker_ids_val"]
             )
             test_dataset = TensorDataset(
-                self.data["X_test"],
-                self.data["y_test"],
-                self.data["ticker_ids_test"]
+                self.data["X_test"], self.data["y_test"], self.data["ticker_ids_test"]
             )
         else:
             # Single-ticker: create dummy ticker_ids (all zeros)
             train_dataset = TensorDataset(
                 self.data["X_train"],
                 self.data["y_train"],
-                torch.zeros(len(self.data["X_train"]), dtype=torch.long).to(self.device)
+                torch.zeros(len(self.data["X_train"]), dtype=torch.long).to(
+                    self.device
+                ),
             )
             val_dataset = TensorDataset(
                 self.data["X_val"],
                 self.data["y_val"],
-                torch.zeros(len(self.data["X_val"]), dtype=torch.long).to(self.device)
+                torch.zeros(len(self.data["X_val"]), dtype=torch.long).to(self.device),
             )
             test_dataset = TensorDataset(
                 self.data["X_test"],
                 self.data["y_test"],
-                torch.zeros(len(self.data["X_test"]), dtype=torch.long).to(self.device)
+                torch.zeros(len(self.data["X_test"]), dtype=torch.long).to(self.device),
             )
 
-        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
+        train_loader = DataLoader(
+            train_dataset, batch_size=self.batch_size, shuffle=True
+        )
         val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False)
-        test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False)
+        test_loader = DataLoader(
+            test_dataset, batch_size=self.batch_size, shuffle=False
+        )
 
         return train_loader, val_loader, test_loader
 
@@ -548,7 +572,11 @@ class TrainPipeline:
             "ticker_to_id": str(self.data["ticker_to_id"]),
             "scaler_path": str(scaler_path) if scaler_path.exists() else None,
             "y_scaler_path": str(y_scaler_path) if y_scaler_path.exists() else None,
-            "preprocessing_config_path": str(preprocessing_config_path) if preprocessing_config_path.exists() else None,
+            "preprocessing_config_path": (
+                str(preprocessing_config_path)
+                if preprocessing_config_path.exists()
+                else None
+            ),
         }
 
         trainer = Trainer(
@@ -558,9 +586,11 @@ class TrainPipeline:
             weight_decay=self.weight_decay,
             experiment_name=self.experiment_name,
             tracking_uri=self.tracking_uri,
-            checkpoint_dir=str(self.model_save_path.parent),  # Use directory from model_save_path
+            checkpoint_dir=str(
+                self.model_save_path.parent
+            ),  # Use directory from model_save_path
             early_stopping_patience=self.early_stopping_patience,
-            extra_params=extra_params
+            extra_params=extra_params,
         )
 
         return trainer
@@ -570,9 +600,13 @@ class TrainPipeline:
         try:
             checkpoint_dir = self.model_save_path.parent
             checkpoints = sorted(
-                [f for f in checkpoint_dir.glob("best_model_*.pt") if f.name != "best_model.pt"],
+                [
+                    f
+                    for f in checkpoint_dir.glob("best_model_*.pt")
+                    if f.name != "best_model.pt"
+                ],
                 key=lambda x: x.stat().st_mtime,
-                reverse=True
+                reverse=True,
             )
 
             for old_checkpoint in checkpoints[keep:]:
@@ -580,6 +614,8 @@ class TrainPipeline:
                 logger.debug(f"🧹 Removed old checkpoint: {old_checkpoint.name}")
 
             if len(checkpoints) > keep:
-                logger.info(f"🧹 Cleaned up {len(checkpoints) - keep} old checkpoints (kept {keep} most recent)")
+                logger.info(
+                    f"🧹 Cleaned up {len(checkpoints) - keep} old checkpoints (kept {keep} most recent)"
+                )
         except Exception as e:
             logger.debug(f"Checkpoint cleanup failed: {e}")

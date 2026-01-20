@@ -59,10 +59,14 @@ class ExperimentTracker:
                 experiment_id = mlflow.create_experiment(
                     experiment_name, artifact_location=artifact_location
                 )
-                logger.info(f"Created new experiment: {experiment_name} (ID: {experiment_id})")
+                logger.info(
+                    f"Created new experiment: {experiment_name} (ID: {experiment_id})"
+                )
             else:
                 experiment_id = experiment.experiment_id
-                logger.info(f"Using existing experiment: {experiment_name} (ID: {experiment_id})")
+                logger.info(
+                    f"Using existing experiment: {experiment_name} (ID: {experiment_id})"
+                )
 
             mlflow.set_experiment(experiment_name)
             self.experiment_id = experiment_id
@@ -141,7 +145,9 @@ class ExperimentTracker:
         except Exception as e:
             logger.error(f"Failed to log metric {key}: {e}")
 
-    def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
+    def log_metrics(
+        self, metrics: Dict[str, float], step: Optional[int] = None
+    ) -> None:
         """Log multiple metrics.
 
         Args:
@@ -153,7 +159,9 @@ class ExperimentTracker:
         except Exception as e:
             logger.error(f"Failed to log metrics: {e}")
 
-    def log_model(self, model: torch.nn.Module, artifact_path: str = "model", **kwargs) -> None:
+    def log_model(
+        self, model: torch.nn.Module, artifact_path: str = "model", **kwargs
+    ) -> None:
         """Log a PyTorch model.
 
         Args:
@@ -167,7 +175,9 @@ class ExperimentTracker:
         except Exception as e:
             logger.error(f"Failed to log model: {e}")
 
-    def log_artifact(self, local_path: str, artifact_path: Optional[str] = None) -> None:
+    def log_artifact(
+        self, local_path: str, artifact_path: Optional[str] = None
+    ) -> None:
         """Log a file as an artifact.
 
         Args:
@@ -180,7 +190,9 @@ class ExperimentTracker:
         except Exception as e:
             logger.error(f"Failed to log artifact {local_path}: {e}")
 
-    def log_artifacts(self, local_dir: str, artifact_path: Optional[str] = None) -> None:
+    def log_artifacts(
+        self, local_dir: str, artifact_path: Optional[str] = None
+    ) -> None:
         """Log all files in a directory as artifacts.
 
         Args:

@@ -56,7 +56,9 @@ class TestDataVersionManager:
 
     def test_init_with_cleanup(self, temp_version_dir):
         """Test initialization with cleanup enabled."""
-        manager = DataVersionManager(base_path=temp_version_dir, auto_cleanup=True, max_versions=5)
+        manager = DataVersionManager(
+            base_path=temp_version_dir, auto_cleanup=True, max_versions=5
+        )
         assert manager.auto_cleanup is True
         assert manager.max_versions == 5
 
@@ -64,7 +66,9 @@ class TestDataVersionManager:
         """Test saving a data version."""
         manager = DataVersionManager(base_path=temp_version_dir)
 
-        version = manager.save(sample_dataframe, ticker="TEST.SA", metadata={"test": "data"})
+        version = manager.save(
+            sample_dataframe, ticker="TEST.SA", metadata={"test": "data"}
+        )
 
         # Check version format (timestamp with milliseconds)
         assert len(version) == 19  # YYYYMMDD_HHMMSS_mmm
@@ -138,11 +142,15 @@ class TestDataVersionManager:
         loaded = manager.load_latest("LOAD_LATEST.SA")
 
         # Should match modified version (check_names and check_freq=False for index properties)
-        pd.testing.assert_frame_equal(loaded, df_modified, check_names=False, check_freq=False)
+        pd.testing.assert_frame_equal(
+            loaded, df_modified, check_names=False, check_freq=False
+        )
 
     def test_auto_cleanup(self, temp_version_dir, sample_dataframe):
         """Test automatic cleanup of old versions."""
-        manager = DataVersionManager(base_path=temp_version_dir, auto_cleanup=True, max_versions=3)
+        manager = DataVersionManager(
+            base_path=temp_version_dir, auto_cleanup=True, max_versions=3
+        )
 
         # Save 5 versions
         for i in range(5):
@@ -242,5 +250,7 @@ class TestArtifactManager:
         manager.save_scaler(scaler, "scaler_with_meta", metadata=metadata)
 
         # Check metadata file exists
-        meta_path = Path(temp_artifact_dir) / "scalers" / "scaler_with_meta_metadata.json"
+        meta_path = (
+            Path(temp_artifact_dir) / "scalers" / "scaler_with_meta_metadata.json"
+        )
         assert meta_path.exists()

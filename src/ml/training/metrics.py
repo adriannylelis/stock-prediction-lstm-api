@@ -63,7 +63,9 @@ def calculate_rmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     return float(rmse)
 
 
-def calculate_mape(y_true: np.ndarray, y_pred: np.ndarray, epsilon: float = 1e-10) -> float:
+def calculate_mape(
+    y_true: np.ndarray, y_pred: np.ndarray, epsilon: float = 1e-10
+) -> float:
     """Calculate Mean Absolute Percentage Error (MAPE).
 
     MAPE expresses error as a percentage of actual values.

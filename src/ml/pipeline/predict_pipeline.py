@@ -98,8 +98,7 @@ class PredictPipeline:
 
             try:
                 self.model = mlflow.pytorch.load_model(
-                    self.model_identifier,
-                    map_location=self.device
+                    self.model_identifier, map_location=self.device
                 )
 
                 # Carregar scaler do run associado
@@ -116,13 +115,18 @@ class PredictPipeline:
                     import tempfile
 
                     import joblib
+
                     with tempfile.TemporaryDirectory() as tmp_dir:
                         try:
-                            scaler_path = client.download_artifacts(run_id, "scaler.pkl", tmp_dir)
+                            scaler_path = client.download_artifacts(
+                                run_id, "scaler.pkl", tmp_dir
+                            )
                             self.scaler = joblib.load(scaler_path)
                             logger.success("✅ Scaler loaded from MLflow")
                         except Exception as e:
-                            logger.warning(f"Scaler not found in MLflow run {run_id}: {e}")
+                            logger.warning(
+                                f"Scaler not found in MLflow run {run_id}: {e}"
+                            )
                             logger.info("Will attempt to use local scaler if available")
                             self.scaler = None
 
@@ -138,8 +142,7 @@ class PredictPipeline:
 
             try:
                 self.model = mlflow.pytorch.load_model(
-                    self.model_identifier,
-                    map_location=self.device
+                    self.model_identifier, map_location=self.device
                 )
 
                 # Extrair run_id e baixar scaler
@@ -149,9 +152,12 @@ class PredictPipeline:
                 import tempfile
 
                 import joblib
+
                 with tempfile.TemporaryDirectory() as tmp_dir:
                     try:
-                        scaler_path = client.download_artifacts(run_id, "scaler.pkl", tmp_dir)
+                        scaler_path = client.download_artifacts(
+                            run_id, "scaler.pkl", tmp_dir
+                        )
                         self.scaler = joblib.load(scaler_path)
                         logger.success("✅ Scaler loaded from MLflow run")
                     except Exception as e:
@@ -171,12 +177,16 @@ class PredictPipeline:
                 raise FileNotFoundError(f"Model not found: {model_path}")
 
             logger.info(f"Loading from local file: {model_path}")
-            checkpoint = torch.load(model_path, map_location=self.device, weights_only=False)
+            checkpoint = torch.load(
+                model_path, map_location=self.device, weights_only=False
+            )
 
             # Create model with embedding architecture
             self.model = StockLSTM(
                 num_tickers=checkpoint.get("num_tickers", 1),
-                num_features=checkpoint.get("num_features", checkpoint.get("input_size", 19)),
+                num_features=checkpoint.get(
+                    "num_features", checkpoint.get("input_size", 19)
+                ),
                 embedding_dim=checkpoint.get("embedding_dim", 8),
                 hidden_size=checkpoint["hidden_size"],
                 num_layers=checkpoint["num_layers"],
@@ -189,6 +199,7 @@ class PredictPipeline:
             scaler_path = model_path.parent / "scaler.pkl"
             if scaler_path.exists():
                 import joblib
+
                 self.scaler = joblib.load(scaler_path)
                 logger.success("✅ Scaler loaded from local file")
             else:
@@ -201,7 +212,9 @@ class PredictPipeline:
 
         self.model.eval()
 
-    def predict(self, days_ahead: int = 5, output_path: Optional[str] = None) -> pd.DataFrame:
+    def predict(
+        self, days_ahead: int = 5, output_path: Optional[str] = None
+    ) -> pd.DataFrame:
         """Generate multi-step predictions.
 
         Args:
@@ -253,7 +266,9 @@ class PredictPipeline:
         end_date = datetime.now()
         start_date = end_date - timedelta(days=730)  # ~2 years
 
-        ingestion = StockDataIngestion(ticker=self.ticker, start_date=start_date, end_date=end_date)
+        ingestion = StockDataIngestion(
+            ticker=self.ticker, start_date=start_date, end_date=end_date
+        )
         return ingestion.download_and_validate()
 
     def _engineer_features(self, df):
@@ -305,7 +320,9 @@ class PredictPipeline:
                 # Update sequence (rolling window)
                 # Remove oldest, append prediction
                 new_point = pred.unsqueeze(1)  # [1, 1, 1]
-                current_sequence = torch.cat([current_sequence[:, 1:, :], new_point], dim=1)
+                current_sequence = torch.cat(
+                    [current_sequence[:, 1:, :], new_point], dim=1
+                )
 
         # Denormalize predictions
         predictions_denorm = self.scaler.inverse_transform([[p] for p in predictions])
@@ -330,6 +347,8 @@ class PredictPipeline:
             start=last_date + pd.Timedelta(days=1), periods=len(predictions), freq="D"
         )
 
-        results_df = pd.DataFrame({"Date": prediction_dates, "Predicted_Close": predictions})
+        results_df = pd.DataFrame(
+            {"Date": prediction_dates, "Predicted_Close": predictions}
+        )
 
         return results_df

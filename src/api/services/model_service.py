@@ -18,7 +18,7 @@ warnings.filterwarnings("ignore", category=FutureWarning, module="mlflow")
 
 class ModelService:
     """Singleton para gerenciar modelo LSTM e scaler.
-    
+
     Suporta:
     - MLflow models (production_model.yaml)
     - Artifacts locais (fallback)
@@ -37,8 +37,10 @@ class ModelService:
             return
 
         self.project_root = Path(__file__).parent.parent.parent.parent
-        self.artifacts_path = self.project_root / 'artifacts' / 'models'  # ✅ Updated
-        self.production_config_path = self.project_root / 'configs' / 'production_model.yaml'
+        self.artifacts_path = self.project_root / "artifacts" / "models"  # ✅ Updated
+        self.production_config_path = (
+            self.project_root / "configs" / "production_model.yaml"
+        )
 
         self.model = None
         self.scaler = None  # X features scaler (19 cols)
@@ -52,13 +54,15 @@ class ModelService:
         self._load_artifacts()
         self._initialized = True
 
-    def _load_from_mlflow(self, model_uri: str, skip_tracking_uri: bool = False) -> bool:
+    def _load_from_mlflow(
+        self, model_uri: str, skip_tracking_uri: bool = False
+    ) -> bool:
         """Load model from MLflow.
-        
+
         Args:
             model_uri: MLflow model URI
             skip_tracking_uri: If True, assumes tracking URI is already set
-            
+
         Returns:
             True if successful
         """
@@ -72,7 +76,7 @@ class ModelService:
                     try:
                         with open(self.production_config_path) as f:
                             prod_config = yaml.safe_load(f)
-                        tracking_uri = prod_config.get('tracking_uri', tracking_uri)
+                        tracking_uri = prod_config.get("tracking_uri", tracking_uri)
                     except Exception as e:
                         logger.warning(f"Could not read tracking_uri from config: {e}")
 
@@ -105,11 +109,15 @@ class ModelService:
                         version = version_or_stage
                     else:
                         # It's a stage (Production, Staging, etc.)
-                        versions = client.get_latest_versions(model_name, stages=[version_or_stage])
+                        versions = client.get_latest_versions(
+                            model_name, stages=[version_or_stage]
+                        )
                         if versions:
                             version = versions[0].version
                         else:
-                            raise ValueError(f"No model found in stage '{version_or_stage}'")
+                            raise ValueError(
+                                f"No model found in stage '{version_or_stage}'"
+                            )
 
                     # Get the run_id from the model version
                     model_version = client.get_model_version(model_name, version)
@@ -121,17 +129,25 @@ class ModelService:
                     try:
                         scaler_path = client.download_artifacts(run_id, "scaler.pkl")
                         self.scaler = joblib.load(scaler_path)
-                        logger.info(f"✅ X features scaler loaded from MLflow: {scaler_path}")
+                        logger.info(
+                            f"✅ X features scaler loaded from MLflow: {scaler_path}"
+                        )
                         scaler_loaded = True
 
                         # Try to load y_scaler as well
                         try:
-                            y_scaler_path = client.download_artifacts(run_id, "y_scaler.pkl")
+                            y_scaler_path = client.download_artifacts(
+                                run_id, "y_scaler.pkl"
+                            )
                             self.y_scaler = joblib.load(y_scaler_path)
-                            logger.info(f"✅ y target scaler loaded from MLflow: {y_scaler_path}")
+                            logger.info(
+                                f"✅ y target scaler loaded from MLflow: {y_scaler_path}"
+                            )
                         except Exception:
                             # Don't assign - let get_y_scaler() create wrapper
-                            logger.info("ℹ️ y_scaler não encontrado; get_y_scaler() criará wrapper")
+                            logger.info(
+                                "ℹ️ y_scaler não encontrado; get_y_scaler() criará wrapper"
+                            )
 
                     except Exception as e:
                         logger.warning(f"⚠️ Scaler artifact not found: {e}")
@@ -141,40 +157,54 @@ class ModelService:
                             scaler_path = Path(artifacts_path) / "scaler.pkl"
                             if scaler_path.exists():
                                 self.scaler = joblib.load(scaler_path)
-                                logger.info(f"✅ Scaler loaded from alternative path: {scaler_path}")
+                                logger.info(
+                                    f"✅ Scaler loaded from alternative path: {scaler_path}"
+                                )
                                 scaler_loaded = True
                         except Exception as e2:
-                            logger.warning(f"⚠️ Could not load scaler from alternative path: {e2}")
+                            logger.warning(
+                                f"⚠️ Could not load scaler from alternative path: {e2}"
+                            )
                 else:
                     logger.warning("⚠️ Could not extract run_id from model_uri")
 
             except Exception as e:
                 logger.warning(f"⚠️ Could not load scaler from MLflow: {e}")
                 import traceback
+
                 logger.debug(traceback.format_exc())
 
             # Try to load ticker mapping for multi-ticker support
             if run_id:
                 try:
                     # Try to load preprocessing config which may contain ticker mapping
-                    preprocessing_config_path = client.download_artifacts(run_id, "preprocessing_config.json")
+                    preprocessing_config_path = client.download_artifacts(
+                        run_id, "preprocessing_config.json"
+                    )
                     if Path(preprocessing_config_path).exists():
                         import json
+
                         with open(preprocessing_config_path) as f:
                             prep_config = json.load(f)
 
                         self.config = prep_config
                         # Check if it's a multi-ticker model
-                        if 'ticker_to_id' in prep_config:
-                            self.ticker_to_id = prep_config['ticker_to_id']
+                        if "ticker_to_id" in prep_config:
+                            self.ticker_to_id = prep_config["ticker_to_id"]
                             self.num_tickers = len(self.ticker_to_id)
-                            logger.info(f"✅ Loaded multi-ticker mapping: {self.num_tickers} tickers")
-                        elif 'ticker_list' in prep_config:
+                            logger.info(
+                                f"✅ Loaded multi-ticker mapping: {self.num_tickers} tickers"
+                            )
+                        elif "ticker_list" in prep_config:
                             # Create mapping from list
-                            ticker_list = prep_config['ticker_list']
-                            self.ticker_to_id = {ticker: idx for idx, ticker in enumerate(ticker_list)}
+                            ticker_list = prep_config["ticker_list"]
+                            self.ticker_to_id = {
+                                ticker: idx for idx, ticker in enumerate(ticker_list)
+                            }
                             self.num_tickers = len(ticker_list)
-                            logger.info(f"✅ Created multi-ticker mapping: {self.num_tickers} tickers")
+                            logger.info(
+                                f"✅ Created multi-ticker mapping: {self.num_tickers} tickers"
+                            )
                         else:
                             # Single-ticker model
                             self.num_tickers = 1
@@ -186,7 +216,9 @@ class ModelService:
 
             # If scaler not found in MLflow, try local artifacts as fallback
             if not scaler_loaded:
-                logger.warning("⚠️ Scaler not found in MLflow, trying local artifacts...")
+                logger.warning(
+                    "⚠️ Scaler not found in MLflow, trying local artifacts..."
+                )
 
                 # Try common local paths (based on project structure)
                 local_scaler_paths = [
@@ -200,19 +232,28 @@ class ModelService:
                     if local_path.exists():
                         try:
                             self.scaler = joblib.load(local_path)
-                            logger.success(f"✅ Scaler loaded from local path: {local_path}")
+                            logger.success(
+                                f"✅ Scaler loaded from local path: {local_path}"
+                            )
                             scaler_loaded = True
                             break
                         except Exception as e:
-                            logger.warning(f"Could not load scaler from {local_path}: {e}")
+                            logger.warning(
+                                f"Could not load scaler from {local_path}: {e}"
+                            )
 
                 # If still not loaded, create unfitted scaler (will fail on prediction)
                 if not scaler_loaded:
                     logger.error("❌ Scaler not found in MLflow or local artifacts!")
-                    logger.error("🔴 CRITICAL: Model cannot make predictions without fitted scaler")
-                    logger.info("💡 Solution: Retrain model with: python -m cli.main train --ticker PETR4.SA --epochs 20")
+                    logger.error(
+                        "🔴 CRITICAL: Model cannot make predictions without fitted scaler"
+                    )
+                    logger.info(
+                        "💡 Solution: Retrain model with: python -m cli.main train --ticker PETR4.SA --epochs 20"
+                    )
 
                     from sklearn.preprocessing import StandardScaler
+
                     self.scaler = StandardScaler()
                     logger.warning("⚠️ Using unfitted scaler - predictions WILL FAIL")
 
@@ -220,7 +261,7 @@ class ModelService:
             self.config = {
                 "model_uri": model_uri,
                 "loaded_from": "mlflow",
-                "has_scaler": scaler_loaded
+                "has_scaler": scaler_loaded,
             }
 
             # Mesmo sem prep_config, alinhar allowed_tickers (irá falhar se não houver mapping)
@@ -235,7 +276,7 @@ class ModelService:
 
     def _load_from_local_artifacts(self) -> bool:
         """Load model from local artifacts (fallback, novo layout).
-        
+
         Espera encontrar:
         - Modelo: artifacts/models/best_model.pt (checkpoint com metadados)
         - Scalers: artifacts/models/scalers/scaler.pkl e opcional y_scaler.pkl
@@ -253,12 +294,16 @@ class ModelService:
 
             if model_path.exists():
                 # Carregar checkpoint completo (novo layout)
-                checkpoint = torch.load(model_path, map_location=torch.device("cpu"), weights_only=False)
+                checkpoint = torch.load(
+                    model_path, map_location=torch.device("cpu"), weights_only=False
+                )
 
                 # Reconstruir modelo a partir dos metadados do checkpoint
                 self.model = StockLSTM(
                     num_tickers=checkpoint.get("num_tickers", 1),
-                    num_features=checkpoint.get("num_features", checkpoint.get("input_size", 19)),
+                    num_features=checkpoint.get(
+                        "num_features", checkpoint.get("input_size", 19)
+                    ),
                     embedding_dim=checkpoint.get("embedding_dim", 8),
                     hidden_size=checkpoint["hidden_size"],
                     num_layers=checkpoint["num_layers"],
@@ -269,14 +314,22 @@ class ModelService:
                 logger.info(f"✅ Modelo carregado do checkpoint: {model_path}")
             else:
                 # Fallback legado: tentar artefatos antigos (model_config.json + model_lstm_1x16.pt + scaler_corrected.pkl)
-                logger.info("Modelo novo não encontrado; tentando layout legado (model_lstm_1x16.pt)...")
+                logger.info(
+                    "Modelo novo não encontrado; tentando layout legado (model_lstm_1x16.pt)..."
+                )
 
                 legacy_config = self.artifacts_path / "model_config.json"
                 legacy_model = self.artifacts_path / "model_lstm_1x16.pt"
                 legacy_scaler = self.artifacts_path / "scaler_corrected.pkl"
 
-                if not (legacy_config.exists() and legacy_model.exists() and legacy_scaler.exists()):
-                    raise FileNotFoundError(f"Modelo não encontrado em {model_path} nem layout legado em {self.artifacts_path}")
+                if not (
+                    legacy_config.exists()
+                    and legacy_model.exists()
+                    and legacy_scaler.exists()
+                ):
+                    raise FileNotFoundError(
+                        f"Modelo não encontrado em {model_path} nem layout legado em {self.artifacts_path}"
+                    )
 
                 with open(legacy_config) as f:
                     self.config = json.load(f)
@@ -290,7 +343,9 @@ class ModelService:
                     dropout=self.config["dropout"],
                 )
 
-                state_dict = torch.load(legacy_model, map_location=torch.device("cpu"), weights_only=False)
+                state_dict = torch.load(
+                    legacy_model, map_location=torch.device("cpu"), weights_only=False
+                )
                 self.model.load_state_dict(state_dict)
                 self.model.eval()
                 logger.info(f"✅ Modelo legado carregado: {legacy_model}")
@@ -311,7 +366,9 @@ class ModelService:
                 logger.info(f"✅ y scaler carregado: {y_scaler_path}")
             else:
                 # Don't assign - let get_y_scaler() handle fallback
-                logger.info("ℹ️ y_scaler não encontrado; get_y_scaler() criará wrapper do X scaler")
+                logger.info(
+                    "ℹ️ y_scaler não encontrado; get_y_scaler() criará wrapper do X scaler"
+                )
 
             # Carregar config de preprocessing, se existir
             if prep_config_path.exists():
@@ -324,7 +381,9 @@ class ModelService:
                     self.ticker_to_id = prep_cfg["ticker_to_id"]
                     self.num_tickers = len(self.ticker_to_id)
                 elif "ticker_list" in prep_cfg:
-                    self.ticker_to_id = {t: i for i, t in enumerate(prep_cfg["ticker_list"])}
+                    self.ticker_to_id = {
+                        t: i for i, t in enumerate(prep_cfg["ticker_list"])
+                    }
                     self.num_tickers = len(self.ticker_to_id)
                 else:
                     self.num_tickers = checkpoint.get("num_tickers", 1)
@@ -333,17 +392,23 @@ class ModelService:
             else:
                 # Config mínima se não houver JSON
                 self.config = {
-                    "num_features": checkpoint.get("num_features", checkpoint.get("input_size", 19)),
+                    "num_features": checkpoint.get(
+                        "num_features", checkpoint.get("input_size", 19)
+                    ),
                     "num_tickers": checkpoint.get("num_tickers", 1),
                     "lookback": checkpoint.get("lookback", 60),
                     "loaded_from": "local",
                 }
                 self.num_tickers = self.config["num_tickers"]
-                logger.info("ℹ️ preprocessing_config.json não encontrado; usando config mínima")
+                logger.info(
+                    "ℹ️ preprocessing_config.json não encontrado; usando config mínima"
+                )
 
             self._sync_allowed_tickers(self.config)
 
-            logger.success("✅ Modelo e scalers carregados do fallback local (novo layout)")
+            logger.success(
+                "✅ Modelo e scalers carregados do fallback local (novo layout)"
+            )
             return True
 
         except Exception as e:
@@ -352,7 +417,7 @@ class ModelService:
 
     def _load_artifacts(self):
         """Load model artifacts - Priority: Local > MLflow.
-        
+
         Priority:
         1. Local artifacts (Docker/production mode)
         2. Production stage from MLflow
@@ -375,7 +440,7 @@ class ModelService:
                 try:
                     with open(self.production_config_path) as f:
                         prod_config = yaml.safe_load(f)
-                    tracking_uri = prod_config.get('tracking_uri', tracking_uri)
+                    tracking_uri = prod_config.get("tracking_uri", tracking_uri)
                 except Exception as e:
                     logger.warning(f"Could not read tracking_uri from config: {e}")
 
@@ -419,7 +484,9 @@ class ModelService:
                         logger.info(f"🎯 Attempting latest: v{latest_version}")
                         if self._load_from_mlflow(model_uri, skip_tracking_uri=True):
                             logger.warning(f"⚠️ Using v{latest_version}")
-                            self._update_production_config(model_uri, f"v{latest_version}")
+                            self._update_production_config(
+                                model_uri, f"v{latest_version}"
+                            )
                             loaded = True
                 except Exception as e:
                     logger.error(f"Failed to load latest: {e}")
@@ -442,7 +509,7 @@ class ModelService:
 
     def _update_production_config(self, model_uri: str, stage: str):
         """Update production_model.yaml automatically after loading model.
-        
+
         Args:
             model_uri: MLflow model URI that was loaded
             stage: Stage of the loaded model
@@ -451,19 +518,19 @@ class ModelService:
             from datetime import datetime
 
             config = {
-                'deployed_at': datetime.now().isoformat(),
-                'deployed_by': 'api_auto_load',
-                'model_uri': model_uri,
-                'stage': stage,
-                'reason': f'Auto-loaded from MLflow {stage} stage',
-                'rollback': False,
-                'rollback_from': None,
-                'tracking_uri': str(mlflow.get_tracking_uri()),
-                'version': model_uri.split('/')[-1] if '/' in model_uri else 'unknown'
+                "deployed_at": datetime.now().isoformat(),
+                "deployed_by": "api_auto_load",
+                "model_uri": model_uri,
+                "stage": stage,
+                "reason": f"Auto-loaded from MLflow {stage} stage",
+                "rollback": False,
+                "rollback_from": None,
+                "tracking_uri": str(mlflow.get_tracking_uri()),
+                "version": model_uri.split("/")[-1] if "/" in model_uri else "unknown",
             }
 
             self.production_config_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.production_config_path, 'w') as f:
+            with open(self.production_config_path, "w") as f:
                 yaml.dump(config, f, default_flow_style=False)
 
             logger.info(f"📝 Updated production_model.yaml: {model_uri} ({stage})")
@@ -473,7 +540,7 @@ class ModelService:
 
     def reload(self) -> bool:
         """Reload model from production config.
-        
+
         Returns:
             True if successful
         """
@@ -501,7 +568,7 @@ class ModelService:
 
     def get_y_scaler(self):
         """Get y target scaler (1 column) for denormalization.
-        
+
         Returns a scaler that can denormalize single-column predictions.
         Uses first column of X scaler (Close price).
         """
@@ -512,7 +579,9 @@ class ModelService:
         import numpy as np
         from sklearn.preprocessing import MinMaxScaler
 
-        logger.warning("y_scaler not found, creating from X scaler first column (Close)")
+        logger.warning(
+            "y_scaler not found, creating from X scaler first column (Close)"
+        )
 
         # Extract stats from first column (Close) of X scaler
         close_scaler = MinMaxScaler()
@@ -533,16 +602,18 @@ class ModelService:
         return self.config
 
     def is_ready(self) -> bool:
-        return (self.model is not None and
-                self.scaler is not None and
-                self.config is not None)
+        return (
+            self.model is not None
+            and self.scaler is not None
+            and self.config is not None
+        )
 
     def get_ticker_id(self, ticker: str) -> int:
         """Obtém o ID do ticker para modelos multi-ticker.
-        
+
         Args:
             ticker: Símbolo do ticker (e.g., 'PETR4.SA')
-            
+
         Returns:
             ID do ticker (0 se modelo single-ticker ou ticker não encontrado)
         """
@@ -551,7 +622,9 @@ class ModelService:
 
         # Caso single-ticker sem mapping explícito
         if not self.ticker_to_id:
-            if ticker in self.allowed_tickers or ticker.replace('.SA', '') in [t.replace('.SA', '') for t in self.allowed_tickers]:
+            if ticker in self.allowed_tickers or ticker.replace(".SA", "") in [
+                t.replace(".SA", "") for t in self.allowed_tickers
+            ]:
                 return 0
             raise InvalidTickerError(ticker=ticker)
 
@@ -560,9 +633,9 @@ class ModelService:
             return self.ticker_to_id[ticker]
 
         # Tenta sem .SA
-        ticker_base = ticker.replace('.SA', '')
+        ticker_base = ticker.replace(".SA", "")
         for key in self.ticker_to_id:
-            if key.replace('.SA', '') == ticker_base:
+            if key.replace(".SA", "") == ticker_base:
                 return self.ticker_to_id[key]
 
         raise InvalidTickerError(ticker=ticker)
@@ -573,11 +646,11 @@ class ModelService:
 
     def predict(self, input_data, ticker_id: int = 0):
         """Make prediction using loaded model.
-        
+
         Args:
             input_data: Input tensor or numpy array (batch, seq_len, features)
             ticker_id: Ticker ID for embedding-based models (default: 0)
-            
+
         Returns:
             numpy array of predictions
         """
@@ -605,11 +678,17 @@ class ModelService:
         self.model.eval()
         with torch.no_grad():
             # Check if model uses embeddings
-            if hasattr(self.model, 'ticker_embedding'):
-                ticker_ids = torch.tensor([ticker_id] * input_tensor.shape[0]).to(device)
-                output, _ = self.model(input_tensor, ticker_ids)  # Unpack tuple: (outputs, hidden_state)
+            if hasattr(self.model, "ticker_embedding"):
+                ticker_ids = torch.tensor([ticker_id] * input_tensor.shape[0]).to(
+                    device
+                )
+                output, _ = self.model(
+                    input_tensor, ticker_ids
+                )  # Unpack tuple: (outputs, hidden_state)
             else:
-                output, _ = self.model(input_tensor)  # Unpack tuple: (outputs, hidden_state)
+                output, _ = self.model(
+                    input_tensor
+                )  # Unpack tuple: (outputs, hidden_state)
 
         # Convert to numpy
         predictions = output.cpu().numpy().flatten()
@@ -627,4 +706,6 @@ class ModelService:
                 self.allowed_tickers = [cfg["ticker"]]
 
         if not self.allowed_tickers:
-            raise RuntimeError("Ticker mapping ausente nos artefatos. Treine/exporte com ticker_list/ticker_to_id.")
+            raise RuntimeError(
+                "Ticker mapping ausente nos artefatos. Treine/exporte com ticker_list/ticker_to_id."
+            )

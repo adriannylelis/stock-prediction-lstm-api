@@ -37,7 +37,9 @@ class DataVersionManager:
             logger.info(f"  Auto-cleanup: ON (max {max_versions} versions)")
             logger.info(f"  Compression: After {compress_after_days} days")
 
-    def save(self, df: pd.DataFrame, ticker: str, metadata: Optional[Dict[str, Any]] = None) -> str:
+    def save(
+        self, df: pd.DataFrame, ticker: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
         """Save DataFrame with version and metadata."""
         import time
 
@@ -156,7 +158,9 @@ class DataVersionManager:
         versions = self.list_versions(ticker)
 
         if len(versions) > self.max_versions:
-            versions_sorted = sorted(versions, key=lambda x: x["timestamp"], reverse=True)
+            versions_sorted = sorted(
+                versions, key=lambda x: x["timestamp"], reverse=True
+            )
             to_remove = versions_sorted[self.max_versions :]
             ticker_clean = ticker.replace(".SA", "").replace(".", "_")
 
@@ -201,7 +205,9 @@ class DataVersionManager:
         ticker_clean = ticker.replace(".SA", "").replace(".", "_")
 
         if len(versions) > keep_latest:
-            versions_sorted = sorted(versions, key=lambda x: x["timestamp"], reverse=True)
+            versions_sorted = sorted(
+                versions, key=lambda x: x["timestamp"], reverse=True
+            )
             to_remove = versions_sorted[keep_latest:]
 
             for version_meta in to_remove:
@@ -236,7 +242,9 @@ class ArtifactManager:
 
         logger.info(f"Initialized ArtifactManager: {self.base_path}")
 
-    def save_scaler(self, scaler: Any, name: str, metadata: Optional[Dict] = None) -> Path:
+    def save_scaler(
+        self, scaler: Any, name: str, metadata: Optional[Dict] = None
+    ) -> Path:
         """Save fitted scaler."""
         import joblib
 
@@ -300,13 +308,17 @@ class ArtifactManager:
         logger.success(f"📝 Registered model '{model_name}' v{model_version.version}")
         return model_version.version
 
-    def get_latest_model_version(self, model_name: str, stage: str = "Production") -> Optional[str]:
+    def get_latest_model_version(
+        self, model_name: str, stage: str = "Production"
+    ) -> Optional[str]:
         """Get latest model version from MLflow Registry."""
         if not self.use_mlflow:
             return None
 
         try:
-            versions = self.mlflow_client.get_latest_versions(model_name, stages=[stage])
+            versions = self.mlflow_client.get_latest_versions(
+                model_name, stages=[stage]
+            )
             if versions:
                 return versions[0].version
         except Exception as e:

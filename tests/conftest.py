@@ -35,18 +35,14 @@ def temp_mlflow_artifacts():
 @pytest.fixture
 def temp_production_config():
     """Create temporary production config file"""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         config = {
             "model_uri": "models:/test-model/1",
             "deployed_at": "2025-01-01 00:00:00",
             "deployed_by": "pytest",
             "tracking_uri": "file:./data/mlflow/tracking",
             "version": 1,
-            "metrics": {
-                "r2": 0.85,
-                "mae": 0.02,
-                "rmse": 0.03
-            }
+            "metrics": {"r2": 0.85, "mae": 0.02, "rmse": 0.03},
         }
         yaml.dump(config, f)
         yield Path(f.name)
@@ -62,7 +58,7 @@ def mock_model_config():
         "num_layers": 1,
         "dropout": 0.2,
         "architecture": "LSTM",
-        "num_tickers": 3
+        "num_tickers": 3,
     }
 
 
@@ -75,7 +71,7 @@ def mock_training_metrics():
         "val_r2": 0.85,
         "val_mae": 0.018,
         "val_rmse": 0.025,
-        "epochs": 50
+        "epochs": 50,
     }
 
 
@@ -85,9 +81,5 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
     )
-    config.addinivalue_line(
-        "markers", "integration: marks tests as integration tests"
-    )
-    config.addinivalue_line(
-        "markers", "e2e: marks tests as end-to-end tests"
-    )
+    config.addinivalue_line("markers", "integration: marks tests as integration tests")
+    config.addinivalue_line("markers", "e2e: marks tests as end-to-end tests")

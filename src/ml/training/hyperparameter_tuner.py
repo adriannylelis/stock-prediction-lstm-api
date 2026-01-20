@@ -76,7 +76,9 @@ class HyperparameterTuner:
             load_if_exists=True,
         )
 
-        logger.info(f"Initialized HyperparameterTuner: {n_trials} trials, device={device}")
+        logger.info(
+            f"Initialized HyperparameterTuner: {n_trials} trials, device={device}"
+        )
 
     def _create_dataloaders(self, batch_size: int) -> tuple[DataLoader, DataLoader]:
         """Create train and validation dataloaders.
@@ -165,7 +167,9 @@ class HyperparameterTuner:
             logger.error(f"Trial {trial.number} failed: {e}")
             return float("inf")
 
-    def optimize(self, show_progress: bool = True, callbacks: Optional[list] = None) -> Dict:
+    def optimize(
+        self, show_progress: bool = True, callbacks: Optional[list] = None
+    ) -> Dict:
         """Run hyperparameter optimization.
 
         Args:

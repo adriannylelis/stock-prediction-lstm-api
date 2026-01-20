@@ -20,39 +20,25 @@ from src.ml.utils.device import get_device
 
 @click.command()
 @click.option(
-    '--model-path',
-    type=str,
-    required=True,
-    help='Path to trained model (.pt file)'
+    "--model-path", type=str, required=True, help="Path to trained model (.pt file)"
 )
 @click.option(
-    '--ticker',
-    type=str,
-    required=True,
-    help='Stock ticker symbol (e.g., PETR4.SA)'
+    "--ticker", type=str, required=True, help="Stock ticker symbol (e.g., PETR4.SA)"
 )
 @click.option(
-    '--start-date',
+    "--start-date",
     type=str,
-    default='2020-01-01',
-    help='Start date for data (YYYY-MM-DD)'
+    default="2020-01-01",
+    help="Start date for data (YYYY-MM-DD)",
 )
 @click.option(
-    '--lookback',
-    type=int,
-    default=60,
-    help='Lookback period (must match training)'
+    "--lookback", type=int, default=60, help="Lookback period (must match training)"
 )
-def evaluate(
-    model_path: str,
-    ticker: str,
-    start_date: str,
-    lookback: int
-):
+def evaluate(model_path: str, ticker: str, start_date: str, lookback: int):
     """📊 Evaluate model performance.
-    
+
     Calculate metrics on test set: MAE, RMSE, MAPE, R², Directional Accuracy.
-    
+
     Example:
         stock-ml evaluate --model-path artifacts/models/best_model.pt --ticker PETR4.SA
     """
@@ -78,13 +64,13 @@ def evaluate(
         checkpoint = torch.load(model_path, map_location=device)
 
         model = StockLSTM(
-            input_size=checkpoint['input_size'],
-            hidden_size=checkpoint['hidden_size'],
-            num_layers=checkpoint['num_layers'],
-            dropout=checkpoint['dropout']
+            input_size=checkpoint["input_size"],
+            hidden_size=checkpoint["hidden_size"],
+            num_layers=checkpoint["num_layers"],
+            dropout=checkpoint["dropout"],
         ).to(device)
 
-        model.load_state_dict(checkpoint['model_state_dict'])
+        model.load_state_dict(checkpoint["model_state_dict"])
         model.eval()
         logger.info("✓ Model loaded")
 
@@ -98,14 +84,11 @@ def evaluate(
         df = tech_ind.fill_missing_values()
 
         preprocessor = StockPreprocessor(
-            lookback_period=lookback,
-            train_ratio=0.7,
-            val_ratio=0.15,
-            test_ratio=0.15
+            lookback_period=lookback, train_ratio=0.7, val_ratio=0.15, test_ratio=0.15
         )
         data = preprocessor.prepare_data(df)
 
-        test_dataset = TensorDataset(data['X_test'], data['y_test'])
+        test_dataset = TensorDataset(data["X_test"], data["y_test"])
         test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
         logger.info(f"✓ Test set: {len(data['X_test'])} samples")
@@ -138,8 +121,9 @@ def evaluate(
 
         # Save metrics
         import json
-        metrics_path = Path(model_path).parent / 'test_metrics.json'
-        with open(metrics_path, 'w') as f:
+
+        metrics_path = Path(model_path).parent / "test_metrics.json"
+        with open(metrics_path, "w") as f:
             json.dump(metrics, f, indent=2)
         logger.info(f"💾 Metrics saved to: {metrics_path}")
 

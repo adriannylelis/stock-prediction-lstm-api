@@ -4,17 +4,19 @@ class APIException(Exception):
         self.message = message
         self.status_code = status_code
         self.details = details or {}
-    
+
     def to_dict(self):
         error_dict = {
-            "error": self.__class__.__name__.replace("Exception", "").replace("Error", ""),
+            "error": self.__class__.__name__.replace("Exception", "").replace(
+                "Error", ""
+            ),
             "message": self.message,
-            "status": self.status_code
+            "status": self.status_code,
         }
-        
+
         if self.details:
             error_dict["details"] = self.details
-        
+
         return error_dict
 
 
@@ -23,11 +25,11 @@ class InvalidTickerError(APIException):
         details = {"ticker": ticker}
         if suggestion:
             details["suggestion"] = suggestion
-        
+
         super().__init__(
             message=f"Ticker '{ticker}' é inválido ou não encontrado",
             status_code=400,
-            details=details
+            details=details,
         )
 
 
@@ -40,8 +42,8 @@ class InsufficientDataError(APIException):
                 "ticker": ticker,
                 "days_available": days_available,
                 "days_required": days_required,
-                "suggestion": f"Ticker precisa ter pelo menos {days_required} dias de histórico"
-            }
+                "suggestion": f"Ticker precisa ter pelo menos {days_required} dias de histórico",
+            },
         )
 
 
@@ -52,8 +54,8 @@ class TickerNotFoundError(APIException):
             status_code=404,
             details={
                 "ticker": ticker,
-                "suggestion": "Verifique se o ticker está correto. Exemplos: AAPL, PETR4.SA, VALE3.SA"
-            }
+                "suggestion": "Verifique se o ticker está correto. Exemplos: AAPL, PETR4.SA, VALE3.SA",
+            },
         )
 
 
@@ -62,11 +64,11 @@ class ModelInferenceError(APIException):
         details = {"ticker": ticker}
         if error_detail:
             details["error_detail"] = error_detail
-        
+
         super().__init__(
             message="Erro ao realizar inferência do modelo",
             status_code=500,
-            details=details
+            details=details,
         )
 
 
@@ -75,9 +77,9 @@ class ServiceUnavailableError(APIException):
         details = {"service": service}
         if retry_after:
             details["retry_after_seconds"] = retry_after
-        
+
         super().__init__(
             message=f"{service} está temporariamente indisponível",
             status_code=503,
-            details=details
+            details=details,
         )

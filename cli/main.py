@@ -17,9 +17,9 @@ from .pipeline import pipeline
 @click.version_option(version="1.0.0")
 def cli():
     """🚀 Stock Prediction ML Pipeline CLI
-    
+
     Professional command-line interface for ML operations.
-    
+
     Examples:
         stock-ml train --ticker PETR4.SA
         stock-ml predict --model-path artifacts/models/best_model.pt --ticker PETR4.SA

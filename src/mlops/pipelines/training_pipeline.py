@@ -16,72 +16,76 @@ from src.ml.pipeline.train_pipeline import TrainPipeline
 # B3 ticker categories (43 unique tickers total)
 B3_TICKERS = {
     "blue_chips": [
-        "PETR4.SA",   # Petrobras
-        "VALE3.SA",   # Vale
-        "ITUB4.SA",   # Itaú
-        "BBDC4.SA",   # Bradesco
-        "ABEV3.SA",   # Ambev
-        "BBAS3.SA",   # Banco do Brasil
-        "WEGE3.SA",   # WEG
-        "RENT3.SA",   # Localiza
-        "B3SA3.SA",   # B3
-        "SUZB3.SA",   # Suzano
+        "PETR4.SA",  # Petrobras
+        "VALE3.SA",  # Vale
+        "ITUB4.SA",  # Itaú
+        "BBDC4.SA",  # Bradesco
+        "ABEV3.SA",  # Ambev
+        "BBAS3.SA",  # Banco do Brasil
+        "WEGE3.SA",  # WEG
+        "RENT3.SA",  # Localiza
+        "B3SA3.SA",  # B3
+        "SUZB3.SA",  # Suzano
     ],
     "bancos": [
         "SANB11.SA",  # Santander
-        "BBSE3.SA",   # BB Seguridade
+        "BBSE3.SA",  # BB Seguridade
     ],
     "energia": [
-        "PETR3.SA",   # Petrobras PN
-        "ELET3.SA",   # Eletrobras
-        "ELET6.SA",   # Eletrobras PNB
-        "CMIG4.SA",   # Cemig
-        "CPLE6.SA",   # Copel
+        "PETR3.SA",  # Petrobras PN
+        "ELET3.SA",  # Eletrobras
+        "ELET6.SA",  # Eletrobras PNB
+        "CMIG4.SA",  # Cemig
+        "CPLE6.SA",  # Copel
     ],
     "varejo": [
-        "MGLU3.SA",   # Magazine Luiza
-        "LREN3.SA",   # Lojas Renner
-        "PETZ3.SA",   # Petz
-        "AMER3.SA",   # Americanas
+        "MGLU3.SA",  # Magazine Luiza
+        "LREN3.SA",  # Lojas Renner
+        "PETZ3.SA",  # Petz
+        "AMER3.SA",  # Americanas
     ],
     "mineracao": [
-        "CMIN3.SA",   # CSN Mineração
-        "GOAU4.SA",   # Metalúrgica Gerdau
+        "CMIN3.SA",  # CSN Mineração
+        "GOAU4.SA",  # Metalúrgica Gerdau
     ],
     "construcao": [
-        "CYRE3.SA",   # Cyrela
-        "BEEF3.SA",   # Minerva
-        "EZTC3.SA",   # EZTec
+        "CYRE3.SA",  # Cyrela
+        "BEEF3.SA",  # Minerva
+        "EZTC3.SA",  # EZTec
     ],
     "telecom": [
-        "VIVT3.SA",   # Vivo
-        "TIMS3.SA",   # Tim
+        "VIVT3.SA",  # Vivo
+        "TIMS3.SA",  # Tim
     ],
     "papel_celulose": [
         "KLBN11.SA",  # Klabin
     ],
     "saude": [
-        "RADL3.SA",   # Raia Drogasil
-        "HAPV3.SA",   # Hapvida
-        "FLRY3.SA",   # Fleury
+        "RADL3.SA",  # Raia Drogasil
+        "HAPV3.SA",  # Hapvida
+        "FLRY3.SA",  # Fleury
     ],
     "tecnologia": [
-        "TOTS3.SA",   # Totvs
-        "LWSA3.SA",   # Locaweb
+        "TOTS3.SA",  # Totvs
+        "LWSA3.SA",  # Locaweb
     ],
     "alimentacao": [],
     "servicos": [
-        "CSAN3.SA",   # Cosan
-        "RAIL3.SA",   # Rumo
+        "CSAN3.SA",  # Cosan
+        "RAIL3.SA",  # Rumo
     ],
 }
 
 # All tickers (all categories combined - ~43 unique tickers)
-ALL_TICKERS = sorted(list(set(
-    ticker
-    for category_tickers in B3_TICKERS.values()
-    for ticker in category_tickers
-)))
+ALL_TICKERS = sorted(
+    list(
+        set(
+            ticker
+            for category_tickers in B3_TICKERS.values()
+            for ticker in category_tickers
+        )
+    )
+)
 
 DEFAULT_TICKERS = B3_TICKERS["blue_chips"]
 
@@ -89,6 +93,7 @@ DEFAULT_TICKERS = B3_TICKERS["blue_chips"]
 @dataclass
 class TrainingResult:
     """Result of training pipeline."""
+
     success: bool
     model_uri: Optional[str] = None
     version: Optional[int] = None
@@ -104,13 +109,13 @@ class TrainingResult:
 
 class AutoTrainingPipeline:
     """Automated training pipeline with data validation.
-    
+
     Features:
     - Data quality validation
     - Automatic model training
     - MLflow registration (Staging)
     - Structured result reporting
-    
+
     Args:
         tickers: List of tickers or "all"/"blue_chips"/"category_name"
         min_data_quality: Minimum data quality threshold (0-1)
@@ -126,7 +131,7 @@ class AutoTrainingPipeline:
         early_stopping_patience: Early stopping patience
         experiment_name: MLflow experiment name
         seed: Random seed
-    
+
     Example:
         >>> pipeline = AutoTrainingPipeline(tickers="all")
         >>> result = pipeline.run()
@@ -172,7 +177,9 @@ class AutoTrainingPipeline:
         self.device = device
         self.seed = seed
 
-        logger.info(f"AutoTrainingPipeline initialized with {len(self.tickers)} tickers")
+        logger.info(
+            f"AutoTrainingPipeline initialized with {len(self.tickers)} tickers"
+        )
 
     def _resolve_tickers(self, tickers: Union[List[str], str]) -> List[str]:
         """Resolve ticker specification to actual list."""
@@ -193,7 +200,7 @@ class AutoTrainingPipeline:
 
     def run(self) -> TrainingResult:
         """Run complete training pipeline.
-        
+
         Returns:
             TrainingResult with model URI, metrics, and status
         """
@@ -266,10 +273,7 @@ class AutoTrainingPipeline:
         except Exception as e:
             logger.error(f"\n❌ Training pipeline failed: {str(e)}")
             logger.exception(e)
-            return TrainingResult(
-                success=False,
-                error=str(e)
-            )
+            return TrainingResult(success=False, error=str(e))
 
 
 if __name__ == "__main__":

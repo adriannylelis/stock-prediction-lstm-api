@@ -3,7 +3,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-stocks_bp = Blueprint('stocks', __name__)
+stocks_bp = Blueprint("stocks", __name__)
 
 AVAILABLE_STOCKS = [
     {"symbol": "PETR4.SA", "name": "Petrobras PN", "market": "B3"},
@@ -31,7 +31,6 @@ AVAILABLE_STOCKS = [
     {"symbol": "RADL3.SA", "name": "Raia Drogasil ON", "market": "B3"},
     {"symbol": "LREN3.SA", "name": "Lojas Renner ON", "market": "B3"},
     {"symbol": "COGN3.SA", "name": "Cogna Educação ON", "market": "B3"},
-    
     {"symbol": "AAPL", "name": "Apple Inc.", "market": "NASDAQ"},
     {"symbol": "MSFT", "name": "Microsoft Corporation", "market": "NASDAQ"},
     {"symbol": "GOOGL", "name": "Alphabet Inc. (Google)", "market": "NASDAQ"},
@@ -55,16 +54,16 @@ AVAILABLE_STOCKS = [
 ]
 
 
-@stocks_bp.route('/stocks', methods=['GET'])
+@stocks_bp.route("/stocks", methods=["GET"])
 def get_stocks():
     """
     GET /stocks
-    
+
     Retorna lista de ações disponíveis para previsão.
-    
+
     Query Parameters:
         market (optional): Filtrar por mercado ('B3', 'NASDAQ', 'NYSE')
-    
+
     Response 200 OK:
         {
             "success": true,
@@ -81,17 +80,27 @@ def get_stocks():
     """
     try:
         logger.info(f"Retornando {len(AVAILABLE_STOCKS)} ações disponíveis")
-        
-        return jsonify({
-            "success": True,
-            "data": AVAILABLE_STOCKS,
-            "count": len(AVAILABLE_STOCKS)
-        }), 200
-        
+
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "data": AVAILABLE_STOCKS,
+                    "count": len(AVAILABLE_STOCKS),
+                }
+            ),
+            200,
+        )
+
     except Exception as e:
         logger.error(f"Erro ao buscar lista de ações: {e}")
-        return jsonify({
-            "error": "Internal Server Error",
-            "message": "Erro ao buscar lista de ações",
-            "status": 500
-        }), 500
+        return (
+            jsonify(
+                {
+                    "error": "Internal Server Error",
+                    "message": "Erro ao buscar lista de ações",
+                    "status": 500,
+                }
+            ),
+            500,
+        )

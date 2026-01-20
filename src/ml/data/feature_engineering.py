@@ -154,7 +154,9 @@ class TechnicalIndicators:
 
         return self.df
 
-    def add_bollinger_bands(self, window: int = 20, num_std: float = 2.0) -> pd.DataFrame:
+    def add_bollinger_bands(
+        self, window: int = 20, num_std: float = 2.0
+    ) -> pd.DataFrame:
         """Add Bollinger Bands.
 
         Bollinger Bands consist of a middle band (SMA) and upper/lower bands

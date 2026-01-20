@@ -4,7 +4,7 @@ Unit Tests for Model Service
 Tests the ModelService singleton without requiring actual models.
 Uses mocks and fixtures to simulate model loading scenarios.
 
-Author: MLOps Team  
+Author: MLOps Team
 Created: 2025-01-07
 """
 
@@ -32,12 +32,12 @@ def reset_singleton():
 @pytest.fixture
 def temp_production_config():
     """Create temporary production config"""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         config = {
             "model_uri": "models:/test-model/1",
             "deployed_at": "2025-01-01 00:00:00",
             "version": 1,
-            "tracking_uri": "file:./data/mlflow/tracking"
+            "tracking_uri": "file:./data/mlflow/tracking",
         }
         yaml.dump(config, f)
         temp_path = Path(f.name)
@@ -46,6 +46,7 @@ def temp_production_config():
 
     # Cleanup with retry for Windows
     import time
+
     for _ in range(3):
         try:
             if temp_path.exists():
@@ -120,7 +121,7 @@ def temp_legacy_artifacts_dir():
 
 def test_model_service_singleton():
     """Test ModelService implements singleton pattern"""
-    with patch.object(ModelService, '_load_artifacts'):
+    with patch.object(ModelService, "_load_artifacts"):
         service1 = ModelService()
         service2 = ModelService()
 
@@ -133,9 +134,9 @@ def test_load_from_mlflow_success(temp_production_config):
     mock_model = Mock()
     mock_scaler = Mock()
 
-    with patch('mlflow.pytorch.load_model', return_value=mock_model):
-        with patch('joblib.load', return_value=mock_scaler):
-            with patch.object(Path, 'exists', return_value=True):
+    with patch("mlflow.pytorch.load_model", return_value=mock_model):
+        with patch("joblib.load", return_value=mock_scaler):
+            with patch.object(Path, "exists", return_value=True):
                 service = ModelService.__new__(ModelService)
                 service.production_config_path = temp_production_config
 
@@ -160,9 +161,9 @@ def test_load_from_local_artifacts_success(temp_artifacts_dir):
         "model_state_dict": {},
     }
 
-    with patch('src.api.services.model_service.StockLSTM', return_value=mock_model):
-        with patch('torch.load', return_value=checkpoint):
-            with patch('joblib.load', return_value={"scaler": "x"}):
+    with patch("src.api.services.model_service.StockLSTM", return_value=mock_model):
+        with patch("torch.load", return_value=checkpoint):
+            with patch("joblib.load", return_value={"scaler": "x"}):
                 service = ModelService.__new__(ModelService)
                 service.artifacts_path = temp_artifacts_dir
 
@@ -173,7 +174,9 @@ def test_load_from_local_artifacts_success(temp_artifacts_dir):
     assert service.scaler is not None
 
 
-def test_fallback_to_local_when_mlflow_fails(temp_production_config, temp_artifacts_dir):
+def test_fallback_to_local_when_mlflow_fails(
+    temp_production_config, temp_artifacts_dir
+):
     """Test fallback to local artifacts when MLflow fails"""
     mock_model = Mock()
     mock_model.load_state_dict = Mock()
@@ -189,10 +192,10 @@ def test_fallback_to_local_when_mlflow_fails(temp_production_config, temp_artifa
         "model_state_dict": {},
     }
 
-    with patch('mlflow.pytorch.load_model', side_effect=Exception("MLflow down")):
-        with patch('src.api.services.model_service.StockLSTM', return_value=mock_model):
-            with patch('torch.load', return_value=checkpoint):
-                with patch('joblib.load', return_value={"scaler": "x"}):
+    with patch("mlflow.pytorch.load_model", side_effect=Exception("MLflow down")):
+        with patch("src.api.services.model_service.StockLSTM", return_value=mock_model):
+            with patch("torch.load", return_value=checkpoint):
+                with patch("joblib.load", return_value={"scaler": "x"}):
                     # Create service without auto-loading
                     service = ModelService.__new__(ModelService)
                     service._initialized = False
@@ -218,9 +221,9 @@ def test_load_from_legacy_artifacts_success(temp_legacy_artifacts_dir):
     mock_model.eval = Mock()
     mock_scaler = Mock()
 
-    with patch('src.api.services.model_service.StockLSTM', return_value=mock_model):
-        with patch('torch.load', return_value={}):
-            with patch('joblib.load', return_value=mock_scaler):
+    with patch("src.api.services.model_service.StockLSTM", return_value=mock_model):
+        with patch("torch.load", return_value={}):
+            with patch("joblib.load", return_value=mock_scaler):
                 service = ModelService.__new__(ModelService)
                 service.artifacts_path = temp_legacy_artifacts_dir
 
@@ -240,7 +243,7 @@ def test_reload_reloads_model():
     # Mock _load_artifacts as simple Mock (does nothing)
     mock_load = Mock()
 
-    with patch.object(service, '_load_artifacts', mock_load):
+    with patch.object(service, "_load_artifacts", mock_load):
         result = service.reload()
 
     assert result is True

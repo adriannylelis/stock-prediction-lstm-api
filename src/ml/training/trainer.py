@@ -86,7 +86,9 @@ class Trainer:
         # Early stopping
         if early_stopping_patience:
             self.early_stopping = EarlyStopping(
-                patience=early_stopping_patience, min_delta=early_stopping_min_delta, mode="min"
+                patience=early_stopping_patience,
+                min_delta=early_stopping_min_delta,
+                mode="min",
             )
         else:
             self.early_stopping = None
@@ -128,7 +130,11 @@ class Trainer:
         Raises:
             ValueError: If loss function name is invalid.
         """
-        loss_functions = {"MSE": nn.MSELoss(), "MAE": nn.L1Loss(), "Huber": nn.HuberLoss()}
+        loss_functions = {
+            "MSE": nn.MSELoss(),
+            "MAE": nn.L1Loss(),
+            "Huber": nn.HuberLoss(),
+        }
 
         if name not in loss_functions:
             raise ValueError(
@@ -156,7 +162,9 @@ class Trainer:
                 X_batch, y_batch, ticker_ids_batch = batch
                 X_batch = X_batch.to(self.device)
                 y_batch = y_batch.to(self.device)  # Already 1D from pipeline
-                ticker_ids_batch = ticker_ids_batch.long().to(self.device)  # Force long dtype
+                ticker_ids_batch = ticker_ids_batch.long().to(
+                    self.device
+                )  # Force long dtype
 
                 # Forward pass com ticker_ids (embedding model)
                 outputs, _ = self.model(X_batch, ticker_ids_batch)
@@ -199,7 +207,9 @@ class Trainer:
                     X_batch, y_batch, ticker_ids_batch = batch
                     X_batch = X_batch.to(self.device)
                     y_batch = y_batch.to(self.device)  # Already 1D from pipeline
-                    ticker_ids_batch = ticker_ids_batch.long().to(self.device)  # Force long dtype
+                    ticker_ids_batch = ticker_ids_batch.long().to(
+                        self.device
+                    )  # Force long dtype
 
                     # Forward pass com ticker_ids (embedding model)
                     outputs, _ = self.model(X_batch, ticker_ids_batch)
@@ -266,8 +276,12 @@ class Trainer:
             # Store ticker_ids if available (for embedding models)
             # Batch order is: (X, y, ticker_ids), so ticker_ids is at index 2
             if len(sample_batch) >= 3:
-                self.ticker_ids_sample = sample_batch[2][:5]  # ticker_ids at index 2 (not 1!)
-                logger.debug(f"Captured ticker_ids samples: min={self.ticker_ids_sample.min().item()}, max={self.ticker_ids_sample.max().item()}")
+                self.ticker_ids_sample = sample_batch[2][
+                    :5
+                ]  # ticker_ids at index 2 (not 1!)
+                logger.debug(
+                    f"Captured ticker_ids samples: min={self.ticker_ids_sample.min().item()}, max={self.ticker_ids_sample.max().item()}"
+                )
             else:
                 self.ticker_ids_sample = None
         except Exception:
@@ -339,9 +353,9 @@ class Trainer:
                     from mlflow.tracking import MlflowClient
 
                     # Handle both single ticker and multi-ticker models
-                    ticker = self.extra_params.get('ticker')
-                    tickers_str = self.extra_params.get('tickers')
-                    model_type = self.extra_params.get('model_type', 'single')
+                    ticker = self.extra_params.get("ticker")
+                    tickers_str = self.extra_params.get("tickers")
+                    model_type = self.extra_params.get("model_type", "single")
 
                     # Always use standard model name for consistency
                     model_name = "stock-lstm-model"
@@ -352,38 +366,54 @@ class Trainer:
                     input_example = None
                     signature = None
 
-                    if hasattr(self, 'X_train_sample') and self.X_train_sample is not None:
+                    if (
+                        hasattr(self, "X_train_sample")
+                        and self.X_train_sample is not None
+                    ):
                         with torch.no_grad():
                             # Check if model needs ticker_ids (embedding model)
-                            if hasattr(self, 'ticker_ids_sample') and self.ticker_ids_sample is not None:
+                            if (
+                                hasattr(self, "ticker_ids_sample")
+                                and self.ticker_ids_sample is not None
+                            ):
                                 # Embedding model: create input with both features and ticker_ids
                                 features_sample = self.X_train_sample.cpu().numpy()
                                 ticker_ids_sample = self.ticker_ids_sample.cpu().numpy()
 
-                                logger.debug(f"Creating MLflow signature with ticker_ids: min={ticker_ids_sample.min()}, max={ticker_ids_sample.max()}, shape={ticker_ids_sample.shape}")
-                                logger.debug(f"Model expects num_tickers={self.model.num_tickers}")
+                                logger.debug(
+                                    f"Creating MLflow signature with ticker_ids: min={ticker_ids_sample.min()}, max={ticker_ids_sample.max()}, shape={ticker_ids_sample.shape}"
+                                )
+                                logger.debug(
+                                    f"Model expects num_tickers={self.model.num_tickers}"
+                                )
 
                                 # Create structured input as dictionary
                                 sample_input = {
                                     "features": features_sample,
-                                    "ticker_ids": ticker_ids_sample
+                                    "ticker_ids": ticker_ids_sample,
                                 }
 
                                 # Get model output (model returns tuple: (outputs, hidden))
                                 sample_output, _ = self.model(
-                                    torch.tensor(features_sample, dtype=torch.float32).to(self.device),
-                                    torch.tensor(ticker_ids_sample, dtype=torch.long).to(self.device)
+                                    torch.tensor(
+                                        features_sample, dtype=torch.float32
+                                    ).to(self.device),
+                                    torch.tensor(
+                                        ticker_ids_sample, dtype=torch.long
+                                    ).to(self.device),
                                 )
                                 sample_output = sample_output.cpu().numpy()
 
                                 # Create input example with first sample
                                 input_example = {
                                     "features": features_sample[:1],
-                                    "ticker_ids": ticker_ids_sample[:1]
+                                    "ticker_ids": ticker_ids_sample[:1],
                                 }
 
                                 # Infer signature from structured input
-                                signature = mlflow.models.infer_signature(sample_input, sample_output)
+                                signature = mlflow.models.infer_signature(
+                                    sample_input, sample_output
+                                )
                             else:
                                 # Backward compatibility (old one-hot models)
                                 sample_input = self.X_train_sample.cpu().numpy()
@@ -392,26 +422,35 @@ class Trainer:
                                 )
                                 sample_output = sample_output.cpu().numpy()
                                 input_example = sample_input[:1]
-                                signature = mlflow.models.infer_signature(sample_input, sample_output)
+                                signature = mlflow.models.infer_signature(
+                                    sample_input, sample_output
+                                )
 
                     # Log model with signature and metadata
                     try:
                         # ✅ Log scaler and preprocessing config as artifacts FIRST
-                        scaler_path = self.extra_params.get('scaler_path')
+                        scaler_path = self.extra_params.get("scaler_path")
                         if scaler_path and Path(scaler_path).exists():
                             self.tracker.log_artifact(scaler_path)
                             logger.info(f"📦 Logged X scaler artifact: {scaler_path}")
 
                         # Log y_scaler (for multi-ticker models)
-                        y_scaler_path = self.extra_params.get('y_scaler_path')
+                        y_scaler_path = self.extra_params.get("y_scaler_path")
                         if y_scaler_path and Path(y_scaler_path).exists():
                             self.tracker.log_artifact(y_scaler_path)
                             logger.info(f"📦 Logged y scaler artifact: {y_scaler_path}")
 
-                        preprocessing_config_path = self.extra_params.get('preprocessing_config_path')
-                        if preprocessing_config_path and Path(preprocessing_config_path).exists():
+                        preprocessing_config_path = self.extra_params.get(
+                            "preprocessing_config_path"
+                        )
+                        if (
+                            preprocessing_config_path
+                            and Path(preprocessing_config_path).exists()
+                        ):
                             self.tracker.log_artifact(preprocessing_config_path)
-                            logger.info(f"📦 Logged preprocessing config: {preprocessing_config_path}")
+                            logger.info(
+                                f"📦 Logged preprocessing config: {preprocessing_config_path}"
+                            )
 
                         model_info = mlflow.pytorch.log_model(
                             self.model,
@@ -423,44 +462,45 @@ class Trainer:
                                 f"torch=={torch.__version__}",
                                 "numpy>=1.24.0",
                                 "scikit-learn>=1.3.0",
-                            ]
+                            ],
                         )
 
                         # Get latest version
                         client = MlflowClient()
                         run_id = self.tracker.get_run_id()
-                        model_versions = client.search_model_versions(f"name='{model_name}'")
+                        model_versions = client.search_model_versions(
+                            f"name='{model_name}'"
+                        )
 
                         if model_versions:
-                            latest_version = max([int(v.version) for v in model_versions])
+                            latest_version = max(
+                                [int(v.version) for v in model_versions]
+                            )
 
                             # ✅ Add descriptive tags
                             client.set_model_version_tag(
                                 model_name,
                                 str(latest_version),
                                 "validation_loss",
-                                f"{self.best_val_loss:.6f}"
+                                f"{self.best_val_loss:.6f}",
                             )
 
                             client.set_model_version_tag(
                                 model_name,
                                 str(latest_version),
                                 "training_date",
-                                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             )
 
                             client.set_model_version_tag(
-                                model_name,
-                                str(latest_version),
-                                "ticker",
-                                ticker
+                                model_name, str(latest_version), "ticker", ticker
                             )
 
                             client.set_model_version_tag(
                                 model_name,
                                 str(latest_version),
                                 "best_epoch",
-                                str(self.best_epoch)
+                                str(self.best_epoch),
                             )
 
                             # ✅ Add detailed description
@@ -476,19 +516,19 @@ class Trainer:
                             )
 
                             client.update_model_version(
-                                model_name,
-                                str(latest_version),
-                                description=description
+                                model_name, str(latest_version), description=description
                             )
 
                             # ✅ Auto-transition to Staging if performance is good
-                            staging_threshold = self.extra_params.get('staging_threshold', 0.01)
+                            staging_threshold = self.extra_params.get(
+                                "staging_threshold", 0.01
+                            )
                             if self.best_val_loss < staging_threshold:
                                 client.transition_model_version_stage(
                                     name=model_name,
                                     version=str(latest_version),
                                     stage="Staging",
-                                    archive_existing_versions=False
+                                    archive_existing_versions=False,
                                 )
                                 logger.success(
                                     f"✅ Model v{latest_version} → Staging "
@@ -542,8 +582,10 @@ class Trainer:
             if is_best:
                 # Save versioned copy with timestamp for history
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                ticker = self.extra_params.get('ticker', 'model')
-                versioned_filename = f"best_model_{ticker.replace('.SA', '')}_{timestamp}.pt"
+                ticker = self.extra_params.get("ticker", "model")
+                versioned_filename = (
+                    f"best_model_{ticker.replace('.SA', '')}_{timestamp}.pt"
+                )
 
                 # Save versioned copy first
                 versioned_path = self.checkpoint_dir / versioned_filename
@@ -561,7 +603,7 @@ class Trainer:
 
     def _save_checkpoint_file(self, filepath: Path, epoch: int) -> None:
         """Save checkpoint to file.
-        
+
         Args:
             filepath: Path to save checkpoint.
             epoch: Current epoch number.
@@ -619,7 +661,9 @@ class Trainer:
                     X_batch, y_batch, ticker_ids_batch = batch
                     X_batch = X_batch.to(self.device)
                     y_batch = y_batch.to(self.device)
-                    ticker_ids_batch = ticker_ids_batch.long().to(self.device)  # Force long dtype
+                    ticker_ids_batch = ticker_ids_batch.long().to(
+                        self.device
+                    )  # Force long dtype
 
                     # Forward pass com ticker_ids (embedding model)
                     outputs, _ = self.model(X_batch, ticker_ids_batch)
@@ -640,14 +684,18 @@ class Trainer:
         # Denormalize if scaler provided
         if scaler:
             # Ensure 2D for scaler (handles both 1D and 2D arrays)
-            pred_2d = predictions.reshape(-1, 1) if predictions.ndim == 1 else predictions
+            pred_2d = (
+                predictions.reshape(-1, 1) if predictions.ndim == 1 else predictions
+            )
             targ_2d = targets.reshape(-1, 1) if targets.ndim == 1 else targets
 
             # Check if scaler has multiple features (need to extract Close column)
-            if hasattr(scaler, 'n_features_in_') and scaler.n_features_in_ > 1:
+            if hasattr(scaler, "n_features_in_") and scaler.n_features_in_ > 1:
                 # Scaler is for all features - need to create dummy array with only Close column
                 # Close is at index 0 in the feature array
-                logger.debug(f"Scaler has {scaler.n_features_in_} features, using only Close column (index 0) for denormalization")
+                logger.debug(
+                    f"Scaler has {scaler.n_features_in_} features, using only Close column (index 0) for denormalization"
+                )
 
                 # Create dummy arrays with zeros for other features, predictions/targets at index 0
                 dummy_pred = np.zeros((len(pred_2d), scaler.n_features_in_))

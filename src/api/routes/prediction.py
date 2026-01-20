@@ -12,7 +12,7 @@ from src.api.utils.exceptions import (
 from src.api.utils.validators import validate_ticker
 from src.api.services.firestore_service import FirestoreService
 
-prediction_bp = Blueprint('prediction', __name__)
+prediction_bp = Blueprint("prediction", __name__)
 
 predict_service = None
 
@@ -22,18 +22,19 @@ def get_predict_service():
     global predict_service
     if predict_service is None:
         from src.api.services.predict_service import PredictService
+
         predict_service = PredictService()
     return predict_service
 
 
-@prediction_bp.route('/predict', methods=['POST'])
+@prediction_bp.route("/predict", methods=["POST"])
 def predict():
     """
     Endpoint para predição do próximo dia + histórico de 30 dias.
-    
+
     Request Body:
         ticker (str): Símbolo da ação (ex: PETR4.SA)
-        
+
     Returns:
         JSON com:
         - prediction: Previsão para o próximo dia
@@ -41,22 +42,32 @@ def predict():
     """
     try:
         if not request.is_json:
-            return jsonify({
-                "error": "Invalid Content-Type",
-                "message": "Content-Type deve ser application/json",
-                "status": 400
-            }), 400
+            return (
+                jsonify(
+                    {
+                        "error": "Invalid Content-Type",
+                        "message": "Content-Type deve ser application/json",
+                        "status": 400,
+                    }
+                ),
+                400,
+            )
 
         data = request.get_json()
 
-        if 'ticker' not in data:
-            return jsonify({
-                "error": "Missing Field",
-                "message": "Campo 'ticker' é obrigatório",
-                "status": 400
-            }), 400
+        if "ticker" not in data:
+            return (
+                jsonify(
+                    {
+                        "error": "Missing Field",
+                        "message": "Campo 'ticker' é obrigatório",
+                        "status": 400,
+                    }
+                ),
+                400,
+            )
 
-        ticker = data['ticker']
+        ticker = data["ticker"]
 
         is_valid, error_message = validate_ticker(ticker)
         if not is_valid:
@@ -69,23 +80,30 @@ def predict():
         try:
             firestore_svc = FirestoreService()
             if firestore_svc.is_available():
-                prediction_date = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
-                firestore_svc.save_prediction({
-                    'ticker': ticker,
-                    'prediction_date': prediction_date,
-                    'predicted_price': result['predicted_price'],
-                    'current_price': result['current_price'],
-                    'model_version': result.get('model_info', {}).get('version', 'unknown')
-                })
-                current_app.logger.info(f"Prediction saved to Firestore: {ticker} for {prediction_date}")
+                prediction_date = (datetime.now() + timedelta(days=1)).strftime(
+                    "%Y-%m-%d"
+                )
+                firestore_svc.save_prediction(
+                    {
+                        "ticker": ticker,
+                        "prediction_date": prediction_date,
+                        "predicted_price": result["predicted_price"],
+                        "current_price": result["current_price"],
+                        "model_version": result.get("model_info", {}).get(
+                            "version", "unknown"
+                        ),
+                    }
+                )
+                current_app.logger.info(
+                    f"Prediction saved to Firestore: {ticker} for {prediction_date}"
+                )
         except Exception as e:
             # Falha silenciosa - não impacta resposta ao usuário
-            current_app.logger.warning(f"Failed to save prediction to Firestore: {str(e)}")
+            current_app.logger.warning(
+                f"Failed to save prediction to Firestore: {str(e)}"
+            )
 
-        return jsonify({
-            "success": True,
-            "data": result
-        }), 200
+        return jsonify({"success": True, "data": result}), 200
 
     except InvalidTickerError as e:
         current_app.logger.warning(f"Ticker inválido: {str(e)}")
@@ -111,29 +129,42 @@ def predict():
         # Modelo não disponível (não treinado ou não encontrado no MLflow)
         if "Failed to load model" in str(e) or "Falha ao inicializar modelo" in str(e):
             current_app.logger.error(f"Modelo não disponível: {str(e)}")
-            return jsonify({
-                "error": "Service Unavailable",
-                "message": "Modelo não está disponível. Por favor, treine um modelo primeiro usando o cli.",
-                "details": str(e),
-                "status": 503
-            }), 503
+            return (
+                jsonify(
+                    {
+                        "error": "Service Unavailable",
+                        "message": "Modelo não está disponível. Por favor, treine um modelo primeiro usando o cli.",
+                        "details": str(e),
+                        "status": 503,
+                    }
+                ),
+                503,
+            )
         # Outros RuntimeErrors
         current_app.logger.error(f"Runtime error: {str(e)}", exc_info=True)
-        return jsonify({
-            "error": "Internal Server Error",
-            "message": str(e),
-            "status": 500
-        }), 500
+        return (
+            jsonify(
+                {"error": "Internal Server Error", "message": str(e), "status": 500}
+            ),
+            500,
+        )
 
     except APIException as e:
         current_app.logger.error(f"Erro da API: {str(e)}")
         return jsonify(e.to_dict()), e.status_code
 
     except Exception as e:
-        current_app.logger.error(f"Erro inesperado na previsão: {str(e)}", exc_info=True)
-        return jsonify({
-            "error": "Internal Server Error",
-            "message": "Erro interno do servidor. Verifique os logs para mais detalhes.",
-            "details": str(e) if current_app.debug else None,
-            "status": 500
-        }), 500
+        current_app.logger.error(
+            f"Erro inesperado na previsão: {str(e)}", exc_info=True
+        )
+        return (
+            jsonify(
+                {
+                    "error": "Internal Server Error",
+                    "message": "Erro interno do servidor. Verifique os logs para mais detalhes.",
+                    "details": str(e) if current_app.debug else None,
+                    "status": 500,
+                }
+            ),
+            500,
+        )

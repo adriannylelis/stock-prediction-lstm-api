@@ -14,7 +14,7 @@ def test_lstm_initialization():
         embedding_dim=8,
         hidden_size=100,
         num_layers=3,
-        dropout=0.3
+        dropout=0.3,
     )
 
     assert model.num_tickers == 50
@@ -27,7 +27,9 @@ def test_lstm_initialization():
 
 def test_lstm_forward_pass():
     """Test LSTM forward pass with ticker embedding."""
-    model = StockLSTM(num_tickers=10, num_features=19, embedding_dim=8, hidden_size=50, num_layers=2)
+    model = StockLSTM(
+        num_tickers=10, num_features=19, embedding_dim=8, hidden_size=50, num_layers=2
+    )
 
     # Create dummy inputs
     x_features = torch.randn(32, 60, 19)  # (batch, seq, features)
@@ -56,7 +58,7 @@ def test_create_model_factory():
         hidden_size=100,
         num_layers=2,
         dropout=0.2,
-        device=torch.device("cpu")
+        device=torch.device("cpu"),
     )
 
     assert isinstance(model, StockLSTM)
