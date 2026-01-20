@@ -3,14 +3,10 @@ from datetime import datetime, timedelta
 from flask import Blueprint, current_app, jsonify, request
 
 from src.api.services.firestore_service import FirestoreService
-from src.api.utils.exceptions import (
-    APIException,
-    InsufficientDataError,
-    InvalidTickerError,
-    ModelInferenceError,
-    ServiceUnavailableError,
-    TickerNotFoundError,
-)
+from src.api.utils.exceptions import (APIException, InsufficientDataError,
+                                      InvalidTickerError, ModelInferenceError,
+                                      ServiceUnavailableError,
+                                      TickerNotFoundError)
 from src.api.utils.validators import validate_ticker
 
 prediction_bp = Blueprint("prediction", __name__)
