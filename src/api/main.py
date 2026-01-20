@@ -44,12 +44,14 @@ def register_blueprints(app):
     from src.api.routes.health import health_bp
     from src.api.routes.model_info import model_info_bp
     from src.api.routes.prediction import prediction_bp
+    from src.api.routes.analytics import analytics_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(model_info_bp)
     app.register_blueprint(prediction_bp)
+    app.register_blueprint(analytics_bp)
 
-    app.logger.info("Blueprints registrados: health, model_info, prediction")
+    app.logger.info("Blueprints registrados: health, model_info, prediction, analytics")
 
 
 def register_error_handlers(app):

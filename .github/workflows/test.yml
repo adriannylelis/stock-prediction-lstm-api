@@ -1,0 +1,184 @@
+name: 🧪 Tests
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'requirements.txt'
+      - '.github/workflows/test.yml'
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.11'
+  FIRESTORE_PROJECT_ID: stock-prediction-test
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+          pip install "numpy<2.0"
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      
+      - name: 🧪 Run unit tests
+        run: |
+          pytest tests/unit/ -v --tb=short --cov=src --cov-report=term-missing
+      
+      - name: 📊 Upload coverage
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-unit
+
+  integration-tests:
+    name: Integration Tests (Firestore)
+    runs-on: ubuntu-latest
+    
+    services:
+      firestore:
+        image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+        ports:
+          - 8080:8080
+        options: >-
+          --health-cmd "curl -f http://localhost:8080 || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+          pip install "numpy<2.0"
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      
+      - name: 🔥 Start Firestore Emulator
+        run: |
+          # Emulator já está rodando via services, apenas configurar variáveis
+          echo "FIRESTORE_EMULATOR_HOST=localhost:8080" >> $GITHUB_ENV
+          echo "GOOGLE_CLOUD_PROJECT=${{ env.FIRESTORE_PROJECT_ID }}" >> $GITHUB_ENV
+          
+          echo "✅ Firestore emulator configured"
+          echo "Host: localhost:8080"
+          echo "Project: ${{ env.FIRESTORE_PROJECT_ID }}"
+      
+      - name: 🧪 Run integration tests
+        env:
+          FIRESTORE_EMULATOR_HOST: localhost:8080
+          GOOGLE_CLOUD_PROJECT: ${{ env.FIRESTORE_PROJECT_ID }}
+        run: |
+          pytest tests/integration/test_firestore_service.py -v --tb=short
+      
+      - name: 📊 Test Report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Integration Tests Report
+          path: 'test-results/*.xml'
+          reporter: java-junit
+          fail-on-error: false
+
+  lint:
+    name: Code Quality (Lint)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: 📦 Install linting tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black isort mypy
+      
+      - name: 🔍 Run flake8
+        run: |
+          flake8 src/ cli/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 src/ cli/ --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
+      
+      - name: 🎨 Check code formatting (black)
+        run: |
+          black --check src/ cli/ tests/
+      
+      - name: 📐 Check import order (isort)
+        run: |
+          isort --check-only src/ cli/ tests/
+
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, lint]
+    if: always()
+    
+    steps:
+      - name: 📊 Generate Summary
+        run: |
+          echo "# 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## Job Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests | ${{ needs.unit-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Integration Tests | ${{ needs.integration-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.unit-tests.result }}" == "success" ] && \
+             [ "${{ needs.integration-tests.result }}" == "success" ] && \
+             [ "${{ needs.lint.result }}" == "success" ]; then
+            echo "✅ **All tests passed!**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Some tests failed. Please review the logs above.**" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: ❌ Fail if any test failed
+        if: |
+          needs.unit-tests.result != 'success' ||
+          needs.integration-tests.result != 'success' ||
+          needs.lint.result != 'success'
+        run: exit 1

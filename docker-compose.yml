@@ -1,4 +1,23 @@
 services:
+  # Firestore Emulator (desenvolvimento local)
+  firestore:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    container_name: firestore-emulator
+    ports:
+      - "8080:8080"  # Firestore emulator
+      - "4000:4000"  # Firestore UI
+    command: gcloud emulators firestore start --host-port=0.0.0.0:8080
+    environment:
+      - FIRESTORE_PROJECT_ID=stock-prediction-local
+    networks:
+      - stock-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   # Backend API (Flask + LSTM)
   backend:
     build:
@@ -13,9 +32,14 @@ services:
       - FLASK_ENV=production
       - FLASK_PORT=5001
       - PYTHONUNBUFFERED=1
+      - GOOGLE_CLOUD_PROJECT=stock-prediction-local
+      - FIRESTORE_EMULATOR_HOST=firestore:8080
     volumes:
       - ./artifacts:/app/artifacts
       - ./data:/app/data
+    depends_on:
+      firestore:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
       interval: 30s

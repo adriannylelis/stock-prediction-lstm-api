@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from flask import Blueprint, current_app, jsonify, request
 
 from src.api.utils.exceptions import (
@@ -9,6 +10,7 @@ from src.api.utils.exceptions import (
     TickerNotFoundError,
 )
 from src.api.utils.validators import validate_ticker
+from src.api.services.firestore_service import FirestoreService
 
 prediction_bp = Blueprint('prediction', __name__)
 
@@ -62,6 +64,23 @@ def predict():
 
         service = get_predict_service()
         result = service.predict(ticker)
+
+        # Salvar predição no Firestore (não bloqueia resposta)
+        try:
+            firestore_svc = FirestoreService()
+            if firestore_svc.is_available():
+                prediction_date = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+                firestore_svc.save_prediction({
+                    'ticker': ticker,
+                    'prediction_date': prediction_date,
+                    'predicted_price': result['predicted_price'],
+                    'current_price': result['current_price'],
+                    'model_version': result.get('model_info', {}).get('version', 'unknown')
+                })
+                current_app.logger.info(f"Prediction saved to Firestore: {ticker} for {prediction_date}")
+        except Exception as e:
+            # Falha silenciosa - não impacta resposta ao usuário
+            current_app.logger.warning(f"Failed to save prediction to Firestore: {str(e)}")
 
         return jsonify({
             "success": True,

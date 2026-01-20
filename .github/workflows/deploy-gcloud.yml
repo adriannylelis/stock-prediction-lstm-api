@@ -59,6 +59,48 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
       
+      # ==================== SETUP FIRESTORE ====================
+      - name: 🔥 Enable Firestore API
+        run: |
+          echo "🔥 Enabling Firestore API..."
+          gcloud services enable firestore.googleapis.com --project=${{ secrets.GCP_PROJECT_ID }} || echo "API already enabled"
+          gcloud services enable appengine.googleapis.com --project=${{ secrets.GCP_PROJECT_ID }} || echo "API already enabled"
+          echo "✅ Firestore API enabled"
+      
+      - name: 🗄️ Create Firestore Database
+        continue-on-error: true
+        run: |
+          echo "🗄️ Creating Firestore database..."
+          
+          # Check if database already exists
+          if gcloud firestore databases list --project=${{ secrets.GCP_PROJECT_ID }} --format="value(name)" 2>/dev/null | grep -q "(default)"; then
+            echo "✅ Firestore database already exists"
+            LOCATION=$(gcloud firestore databases describe --database="(default)" --project=${{ secrets.GCP_PROJECT_ID }} --format="value(locationId)" 2>/dev/null || echo "unknown")
+            echo "📍 Current location: $LOCATION"
+          else
+            echo "📦 Creating new Firestore database in ${{ env.GCP_REGION }}..."
+            gcloud firestore databases create \
+              --location="${{ env.GCP_REGION }}" \
+              --type=firestore-native \
+              --project=${{ secrets.GCP_PROJECT_ID }} || echo "Database creation skipped (may already exist via App Engine)"
+            echo "✅ Firestore database created"
+          fi
+      
+      - name: 🔐 Configure Firestore IAM
+        continue-on-error: true
+        run: |
+          echo "🔐 Configuring Firestore IAM permissions..."
+          
+          SERVICE_ACCOUNT="${{ secrets.GCP_PROJECT_ID }}@appspot.gserviceaccount.com"
+          
+          gcloud projects add-iam-policy-binding ${{ secrets.GCP_PROJECT_ID }} \
+            --member="serviceAccount:$SERVICE_ACCOUNT" \
+            --role="roles/datastore.user" \
+            --condition=None \
+            --quiet || echo "IAM binding may already exist"
+          
+          echo "✅ Firestore IAM configured"
+      
       # ==================== GET ARTIFACTS ====================
       - name: 📦 Get latest model artifacts
         run: |
@@ -114,7 +156,7 @@ jobs:
             --min-instances 0 \
             --max-instances 10 \
             --timeout 300 \
-            --set-env-vars "FLASK_ENV=production,MODEL_TICKER=PETR4.SA,PYTHONUNBUFFERED=1" \
+            --set-env-vars "FLASK_ENV=production,MODEL_TICKER=PETR4.SA,PYTHONUNBUFFERED=1,GOOGLE_CLOUD_PROJECT=${{ secrets.GCP_PROJECT_ID }}" \
             --port 5001
           
           # Get service URL
