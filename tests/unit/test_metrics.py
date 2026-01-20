@@ -2,10 +2,14 @@
 
 import numpy as np
 
-from src.ml.training.metrics import (calculate_all_metrics,
-                                     calculate_directional_accuracy,
-                                     calculate_mae, calculate_mape,
-                                     calculate_r2_score, calculate_rmse)
+from src.ml.training.metrics import (
+    calculate_all_metrics,
+    calculate_directional_accuracy,
+    calculate_mae,
+    calculate_mape,
+    calculate_r2_score,
+    calculate_rmse,
+)
 
 
 def test_calculate_mae():

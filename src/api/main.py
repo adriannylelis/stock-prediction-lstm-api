@@ -60,11 +60,14 @@ def register_blueprints(app):
 
 
 def register_error_handlers(app):
-    from src.api.utils.exceptions import (APIException, InsufficientDataError,
-                                          InvalidTickerError,
-                                          ModelInferenceError,
-                                          ServiceUnavailableError,
-                                          TickerNotFoundError)
+    from src.api.utils.exceptions import (
+        APIException,
+        InsufficientDataError,
+        InvalidTickerError,
+        ModelInferenceError,
+        ServiceUnavailableError,
+        TickerNotFoundError,
+    )
 
     @app.errorhandler(APIException)
     def handle_api_exception(error):

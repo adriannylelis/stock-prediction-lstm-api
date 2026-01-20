@@ -229,7 +229,9 @@ class HyperparameterTuner:
         try:
             import matplotlib.pyplot as plt
             from optuna.visualization.matplotlib import (
-                plot_optimization_history, plot_param_importances)
+                plot_optimization_history,
+                plot_param_importances,
+            )
 
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
 

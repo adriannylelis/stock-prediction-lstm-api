@@ -5,9 +5,11 @@ from typing import Optional
 import pandas as pd
 import yfinance as yf
 
-from src.api.utils.exceptions import (InsufficientDataError,
-                                      ServiceUnavailableError,
-                                      TickerNotFoundError)
+from src.api.utils.exceptions import (
+    InsufficientDataError,
+    ServiceUnavailableError,
+    TickerNotFoundError,
+)
 
 logger = logging.getLogger(__name__)
 
