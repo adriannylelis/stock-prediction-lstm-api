@@ -28,6 +28,41 @@ def get_predict_service():
     return predict_service
 
 
+def _update_past_predictions(firestore_svc, ticker, result):
+    """
+    Atualiza predições passadas com preço real.
+
+    Busca predições pendentes (sem actual_price) que já passaram da data
+    e atualiza com o preço atual como actual_price.
+    """
+    try:
+        today = datetime.now().date()
+
+        # Buscar predições pendentes
+        pending = firestore_svc.get_pending_predictions(ticker)
+
+        for pred in pending:
+            pred_date_str = pred.get("prediction_date")
+            if not pred_date_str:
+                continue
+
+            # Converter para date
+            pred_date = datetime.strptime(pred_date_str, "%Y-%m-%d").date()
+
+            # Se a data da predição já passou, atualizar com preço atual
+            if pred_date <= today:
+                actual_price = result.get("current_price")
+                if actual_price:
+                    firestore_svc.update_actual_price(
+                        ticker, pred_date_str, actual_price
+                    )
+                    current_app.logger.info(
+                        f"Updated past prediction: {ticker} @ {pred_date_str} = {actual_price}"
+                    )
+    except Exception as e:
+        current_app.logger.warning(f"Failed to update past predictions: {str(e)}")
+
+
 @prediction_bp.route("/predict", methods=["POST"])
 def predict():
     """
@@ -77,10 +112,14 @@ def predict():
         service = get_predict_service()
         result = service.predict(ticker)
 
-        # Salvar predição no Firestore (não bloqueia resposta)
+        # Salvar predição no Firestore + Atualizar predições passadas
         try:
             firestore_svc = FirestoreService()
             if firestore_svc.is_available():
+                # 1. Atualizar predições passadas com preço real (se houver)
+                _update_past_predictions(firestore_svc, ticker, result)
+
+                # 2. Salvar/atualizar predição atual
                 prediction_date = (datetime.now() + timedelta(days=1)).strftime(
                     "%Y-%m-%d"
                 )

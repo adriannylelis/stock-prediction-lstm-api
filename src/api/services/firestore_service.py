@@ -85,12 +85,14 @@ class FirestoreService:
 
     def save_prediction(self, data: dict) -> Optional[str]:
         """
-        Salva uma predição no Firestore.
+        Salva ou atualiza uma predição no Firestore (UPSERT).
+
+        Se já existe uma predição para o mesmo ticker e prediction_date,
+        atualiza ao invés de criar duplicata.
 
         Args:
             data: Dicionário com dados da predição
                 - ticker (str): Símbolo da ação
-                - predicted_at (str): Timestamp ISO da predição
                 - prediction_date (str): Data alvo da predição (YYYY-MM-DD)
                 - predicted_price (float): Preço previsto
                 - current_price (float): Preço atual no momento da predição
@@ -98,9 +100,25 @@ class FirestoreService:
                 - model_version (str): Versão do modelo
 
         Returns:
-            str: ID do documento criado, ou None se falhar
+            str: ID do documento criado/atualizado, ou None se falhar
         """
         try:
+            ticker = data["ticker"]
+            prediction_date = data["prediction_date"]
+
+            # Verificar se já existe predição para esse ticker e data
+            existing = (
+                self.collection.where("ticker", "==", ticker)
+                .where("prediction_date", "==", prediction_date)
+                .limit(1)
+                .stream()
+            )
+
+            existing_doc = None
+            for doc in existing:
+                existing_doc = doc
+                break
+
             # Adicionar timestamp se não fornecido
             if "predicted_at" not in data:
                 data["predicted_at"] = datetime.utcnow().isoformat()
@@ -110,13 +128,21 @@ class FirestoreService:
             data.setdefault("error", None)
             data.setdefault("error_percent", None)
 
-            # Salvar no Firestore
-            _, doc_ref = self.collection.add(data)
-            doc_id = doc_ref.id
+            if existing_doc:
+                # Atualizar predição existente
+                doc_id = existing_doc.id
+                self.collection.document(doc_id).update(data)
+                logger.info(
+                    f"🔄 Predição atualizada: {doc_id} | {ticker} | {prediction_date}"
+                )
+            else:
+                # Criar nova predição
+                _, doc_ref = self.collection.add(data)
+                doc_id = doc_ref.id
+                logger.info(
+                    f"✅ Predição salva: {doc_id} | {ticker} | {prediction_date}"
+                )
 
-            logger.info(
-                f"✅ Predição salva: {doc_id} | {data['ticker']} | {data['prediction_date']}"
-            )
             return doc_id
 
         except Exception as e:
