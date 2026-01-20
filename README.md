@@ -7,10 +7,23 @@
 [![Flask](https://img.shields.io/badge/Flask-3.0-green.svg)](https://flask.palletsprojects.com/)
 [![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
 [![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Platform-yellow.svg)](https://cloud.google.com/)
+[![Firestore](https://img.shields.io/badge/Firestore-Native-orange.svg)](https://firebase.google.com/docs/firestore)
 
-API REST completa para previsão de preços de ações brasileiras usando **LSTM**, com foco em **PETR4.SA (Petrobras)**. Inclui frontend web, treino automatizado via GitHub Actions e deploy na Google Cloud Platform.
+API REST completa para previsão de preços de ações brasileiras usando **LSTM**, com foco em **PETR4.SA (Petrobras)**. Inclui frontend web, treino automatizado via GitHub Actions, histórico de predições no Firestore e deploy na Google Cloud Platform.
 
 ---
+
+## ✨ Funcionalidades Principais
+
+- 📈 **Predições LSTM**: Modelo PyTorch treinado para prever preços de ações
+- 💾 **Histórico Persistente**: Todas as predições são salvas no Google Cloud Firestore
+- 📊 **Analytics**: Endpoints para acompanhar acurácia ao longo do tempo (MAE, MAPE, RMSE)
+- 🔄 **Auto-Update**: Predições passadas são atualizadas automaticamente com preços reais
+- 🚫 **UPSERT Inteligente**: Múltiplas predições no mesmo dia atualizam o registro existente
+- 🎯 **API REST Completa**: Health check, model info, predictions, analytics
+- 🌐 **Frontend React**: Interface web para visualização de predições
+- 🔁 **CI/CD Automatizado**: Treino semanal + deploy via GitHub Actions
+- 🐳 **Docker**: Containerização completa (backend, frontend, Firestore emulator)
 
 ---
 
@@ -19,6 +32,7 @@ API REST completa para previsão de preços de ações brasileiras usando **LSTM
 - [⚡ Quick Start](#-quick-start)
 - [🎯 Visão Geral](#-visão-geral)
 - [🏗️ Arquitetura](#️-arquitetura)
+- [🗄️ Firestore - Histórico de Predições](#️-firestore---histórico-de-predições)
 - [💰 Custos](#-custos)
 - [📚 Documentação](#-documentação)
 ```
@@ -109,6 +123,101 @@ curl -X POST http://localhost:5001/predict \
 - `high`: Mudança < 2%
 - `medium`: Mudança entre 2% e 5%
 - `low`: Mudança > 5%
+
+**Persistência Automática:**
+- Todas as predições são salvas automaticamente no Firestore
+- Se houver predição existente para o mesmo ticker e data, ela é atualizada (UPSERT)
+- Predições passadas são atualizadas automaticamente com o preço real quando disponível
+
+---
+
+#### **4. GET /analytics/<ticker> - Histórico e Métricas**
+
+Retorna histórico completo de predições e métricas de acurácia para um ticker.
+
+```bash
+curl http://localhost:5001/analytics/AAPL
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "ticker": "AAPL",
+  "predictions": [
+    {
+      "prediction_date": "2026-01-20",
+      "predicted_price": 88.59,
+      "current_price": 273.76,
+      "actual_price": 275.12,
+      "error": 186.53,
+      "error_percent": 67.81,
+      "model_version": "1.0",
+      "predicted_at": "2026-01-19T04:18:19"
+    }
+  ],
+  "metrics": {
+    "mae": 186.53,
+    "mape": 67.81,
+    "rmse": 186.53,
+    "total_predictions": 1,
+    "predictions_with_actual": 1
+  }
+}
+```
+
+---
+
+#### **5. GET /analytics/<ticker>/pending - Predições Pendentes**
+
+Retorna predições que ainda não possuem preço real atualizado.
+
+```bash
+curl http://localhost:5001/analytics/AAPL/pending
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "ticker": "AAPL",
+  "pending_predictions": [
+    {
+      "prediction_date": "2026-01-20",
+      "predicted_price": 88.59,
+      "current_price": 273.76,
+      "model_version": "1.0",
+      "predicted_at": "2026-01-19T04:18:19"
+    }
+  ],
+  "total_pending": 1
+}
+```
+
+---
+
+#### **6. GET /analytics/<ticker>/accuracy - Apenas Métricas**
+
+Retorna apenas as métricas de acurácia sem o histórico.
+
+```bash
+curl http://localhost:5001/analytics/AAPL/accuracy
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "ticker": "AAPL",
+  "metrics": {
+    "mae": 186.53,
+    "mape": 67.81,
+    "rmse": 186.53,
+    "total_predictions": 1,
+    "predictions_with_actual": 1
+  }
+}
+```
 
 ---
 
@@ -201,11 +310,13 @@ src/api/
 ├── routes/                    # Endpoints (Blueprints)
 │   ├── health.py              # Health check
 │   ├── model_info.py          # Model metadata
-│   └── prediction.py          # Predictions
+│   ├── prediction.py          # Predictions (com salvamento Firestore)
+│   └── analytics.py           # Analytics e histórico
 ├── services/                  # Business Logic
 │   ├── model_service.py       # Singleton: Model + Scaler loading
 │   ├── data_service.py        # Yahoo Finance integration
-│   └── predict_service.py     # Prediction pipeline orchestration
+│   ├── predict_service.py     # Prediction pipeline orchestration
+│   └── firestore_service.py   # Firestore CRUD + Analytics
 ├── models/
 │   └── lstm_model.py          # StockLSTM PyTorch model
 └── utils/
@@ -226,6 +337,169 @@ src/api/
 - `TickerNotFoundError` (404): Ticker não existe no Yahoo Finance
 - `ModelInferenceError` (500): Erro na inferência do modelo
 - `ServiceUnavailableError` (503): Yahoo Finance indisponível
+
+---
+
+## 🗄️ Firestore - Histórico de Predições
+
+### **Por Que Firestore?**
+
+O projeto utiliza **Google Cloud Firestore** para persistir histórico de predições, oferecendo:
+
+- ✅ **Serverless**: Sem necessidade de gerenciar infraestrutura de banco de dados
+- ✅ **Free Tier Generoso**: 50k leituras/20k escritas/20k deletes por dia gratuitamente
+- ✅ **Escalabilidade Automática**: Cresce conforme a demanda sem configuração
+- ✅ **Integração Nativa**: Já está no ecossistema Google Cloud (Cloud Run, Cloud Build)
+- ✅ **Baixa Latência**: Perfeito para aplicações de tempo real
+- ✅ **NoSQL Flexível**: Schema-less, ideal para armazenar predições
+
+### **Schema de Dados**
+
+Cada predição é salva como um documento na coleção `predictions`:
+
+```json
+{
+  "ticker": "AAPL",
+  "prediction_date": "2026-01-20",
+  "predicted_price": 88.59,
+  "current_price": 273.76,
+  "actual_price": 275.12,
+  "error": 186.53,
+  "error_percent": 67.81,
+  "model_version": "1.0",
+  "predicted_at": "2026-01-19T04:18:19"
+}
+```
+
+**Campos:**
+- `ticker`: Símbolo da ação (ex: AAPL, PETR4.SA)
+- `prediction_date`: Data para qual a predição foi feita (T+1)
+- `predicted_price`: Preço previsto pelo modelo
+- `current_price`: Último preço conhecido no momento da predição
+- `actual_price`: Preço real observado (preenchido automaticamente depois)
+- `error`: Diferença absoluta entre previsto e real
+- `error_percent`: Erro percentual
+- `model_version`: Versão do modelo que fez a predição
+- `predicted_at`: Timestamp UTC da predição
+
+### **Funcionalidades Implementadas**
+
+#### **1. UPSERT Automático**
+Múltiplas predições para o mesmo ticker e data **atualizam** o registro existente ao invés de criar duplicatas:
+
+```python
+# Primeira predição do dia para AAPL
+POST /predict {"ticker": "AAPL"}  # ✅ Cria novo documento
+
+# Segunda predição do dia para AAPL
+POST /predict {"ticker": "AAPL"}  # ✅ Atualiza o documento existente
+```
+
+**Lógica:**
+- Query por `(ticker, prediction_date)`
+- Se encontrar: **UPDATE** (preserva histórico, atualiza valores)
+- Se não encontrar: **CREATE** (novo documento)
+
+#### **2. Auto-Update de Preços Reais**
+Predições passadas são atualizadas automaticamente com o preço real quando você faz uma nova predição:
+
+```python
+# Dia 1: Fazer predição para amanhã
+POST /predict {"ticker": "AAPL"}
+# Salvo: { "prediction_date": "2026-01-20", "predicted_price": 88.59, "actual_price": null }
+
+# Dia 2: Fazer nova predição
+POST /predict {"ticker": "AAPL"}
+# ✅ Auto-atualiza predição do Dia 1 com preço real
+# Atualizado: { "prediction_date": "2026-01-20", "predicted_price": 88.59, "actual_price": 275.12, "error": 186.53 }
+# ✅ Cria nova predição para amanhã
+```
+
+**Benefícios:**
+- Não precisa rodar scripts separados para atualizar preços reais
+- Cálculo automático de erro (MAE, MAPE, RMSE)
+- Histórico sempre atualizado
+
+#### **3. Analytics e Métricas**
+Endpoints dedicados para acompanhar performance do modelo:
+
+```bash
+# Ver histórico completo + métricas
+GET /analytics/AAPL
+
+# Ver apenas predições pendentes (sem preço real)
+GET /analytics/AAPL/pending
+
+# Ver apenas métricas de acurácia
+GET /analytics/AAPL/accuracy
+```
+
+**Métricas calculadas:**
+- **MAE** (Mean Absolute Error): Erro médio absoluto
+- **MAPE** (Mean Absolute Percentage Error): Erro percentual médio
+- **RMSE** (Root Mean Squared Error): Raiz do erro quadrático médio
+- **Total de predições**: Quantidade de predições feitas
+- **Predições com preço real**: Quantidade de predições já validadas
+
+### **Setup Local (Emulator)**
+
+Para desenvolvimento local, use o Firestore Emulator via Docker Compose:
+
+```bash
+# Iniciar emulator
+docker-compose up -d firestore
+
+# Verificar se está rodando
+curl http://localhost:8080
+
+# Rodar backend conectado ao emulator
+FIRESTORE_EMULATOR_HOST=localhost:8080 \
+GOOGLE_CLOUD_PROJECT=stock-prediction-local \
+python src/api/main.py
+```
+
+### **Setup em Produção (GCP)**
+
+Execute o script de setup para configurar Firestore no Google Cloud:
+
+```bash
+# Rodar no Cloud Shell ou localmente com gcloud CLI
+bash scripts/setup_firestore.sh
+```
+
+**O script:**
+1. Habilita a API do Firestore
+2. Cria o banco de dados Firestore Native em `us-central1`
+3. Configura permissões IAM para Cloud Run acessar Firestore
+4. Valida a configuração
+
+**Ver detalhes completos:** [docs/FIRESTORE_SETUP_GUIDE.md](docs/FIRESTORE_SETUP_GUIDE.md)
+
+### **Monitoramento**
+
+```bash
+# Ver predições salvas
+gcloud firestore databases list
+
+# Consultar coleção via gcloud
+gcloud firestore operations list
+
+# Usar console web
+https://console.firebase.google.com/project/stock-prediction-prod/firestore
+```
+
+### **Custos**
+
+**Free Tier (sempre gratuito):**
+- 50,000 reads/dia
+- 20,000 writes/dia
+- 20,000 deletes/dia
+- 1 GB storage
+
+**Estimativa de uso:**
+- ~10 predições/dia × 30 dias = 300 writes/mês
+- ~100 leituras analytics/dia = 3,000 reads/mês
+- **Custo: R$ 0,00** (bem dentro do free tier)
 
 ---
 
@@ -250,6 +524,15 @@ curl -X POST http://localhost:5001/predict \
 curl -X POST http://localhost:5001/predict \
   -H "Content-Type: application/json" \
   -d '{"ticker": "PETR4.SA"}' | python -m json.tool
+
+# 6. Ver histórico e métricas de AAPL
+curl http://localhost:5001/analytics/AAPL | python -m json.tool
+
+# 7. Ver predições pendentes (sem preço real)
+curl http://localhost:5001/analytics/AAPL/pending | python -m json.tool
+
+# 8. Ver apenas métricas de acurácia
+curl http://localhost:5001/analytics/AAPL/accuracy | python -m json.tool
 ```
 
 ---
@@ -313,6 +596,7 @@ Coverage: 72.79%
 | [PROJECT_REPORT.md](docs/PROJECT_REPORT.md) | Relatório completo do projeto, arquitetura, funcionalidades e integração com API |
 | [ML_DOCUMENTATION.md](docs/ML_DOCUMENTATION.md) | Documentação do modelo LSTM, pipelines de treino/predição e métricas |
 | [API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) | Especificação técnica da API REST (endpoints, fluxo, exceções, validações) |
+| [FIRESTORE_SETUP_GUIDE.md](docs/FIRESTORE_SETUP_GUIDE.md) | Como configurar e usar o Firestore para histórico de predições |
 | [RUN_TESTS.md](docs/RUN_TESTS.md) | Como rodar a suíte de testes (unit, integration, e2e) |
 
 ### 🔁 Pipelines Principais
@@ -335,6 +619,7 @@ Coverage: 72.79%
 | **ML Framework** | PyTorch | 2.1+ |
 | **Data Processing** | pandas, numpy | latest |
 | **Data Source** | yfinance | latest |
+| **Database** | Google Cloud Firestore | latest |
 | **Experiment Tracking** | MLflow | 2.9+ |
 | **Hyperparameter Tuning** | Optuna | 3.5+ |
 | **Testing** | pytest, pytest-cov | 8.0+, 7.0+ |
