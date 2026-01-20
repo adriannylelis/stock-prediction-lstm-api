@@ -3,9 +3,10 @@ LSTM Model para previsão de preços de ações.
 Arquitetura: 3 camadas LSTM com Dropout e suporte a embeddings de tickers.
 """
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
-from typing import Optional
 
 
 class StockLSTM(nn.Module):
@@ -60,6 +61,7 @@ class StockLSTM(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.dropout_rate = dropout
+        self.dropout_prob = dropout  # Alias for backward compatibility
         self.output_size = output_size
         self.bidirectional = bidirectional
 

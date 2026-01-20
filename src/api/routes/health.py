@@ -1,5 +1,6 @@
-from flask import Blueprint, jsonify
 from datetime import datetime
+
+from flask import Blueprint, jsonify
 
 health_bp = Blueprint("health", __name__)
 

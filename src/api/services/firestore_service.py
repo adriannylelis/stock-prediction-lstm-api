@@ -7,10 +7,10 @@ Suporta:
 - Testes: Usa emulador Firestore
 """
 
-import os
 import logging
+import os
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
 from google.cloud import firestore
 from google.cloud.firestore_v1.base_query import FieldFilter

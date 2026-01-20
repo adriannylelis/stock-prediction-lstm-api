@@ -6,11 +6,11 @@ Commands: train, predict, evaluate, monitor
 
 import click
 
-from .train import train
-from .predict import predict
 from .evaluate import evaluate
 from .monitor import monitor
 from .pipeline import pipeline
+from .predict import predict
+from .train import train
 
 
 @click.group()

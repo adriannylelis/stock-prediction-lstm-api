@@ -32,7 +32,7 @@ import logging
 import os
 import sys
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
 import yfinance as yf
 

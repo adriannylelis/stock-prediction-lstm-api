@@ -1,15 +1,17 @@
 """Pipeline command - Run complete pipeline."""
 
-import click
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import click
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.ml.pipeline.train_pipeline import TrainPipeline
-from src.ml.pipeline.predict_pipeline import PredictPipeline
-from src.ml.utils.seed import set_seed
 from loguru import logger
+
+from src.ml.pipeline.predict_pipeline import PredictPipeline
+from src.ml.pipeline.train_pipeline import TrainPipeline
+from src.ml.utils.seed import set_seed
 
 
 @click.command()

@@ -8,11 +8,12 @@ Para executar:
     python tests/test_api.py
 """
 
-import requests
 import time
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
+
 import pytest
+import requests
 
 BASE_URL = "http://localhost:5001"
 

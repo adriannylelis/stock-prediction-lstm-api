@@ -46,10 +46,10 @@ def create_app(config=None):
 
 
 def register_blueprints(app):
+    from src.api.routes.analytics import analytics_bp
     from src.api.routes.health import health_bp
     from src.api.routes.model_info import model_info_bp
     from src.api.routes.prediction import prediction_bp
-    from src.api.routes.analytics import analytics_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(model_info_bp)
@@ -60,14 +60,11 @@ def register_blueprints(app):
 
 
 def register_error_handlers(app):
-    from src.api.utils.exceptions import (
-        APIException,
-        InsufficientDataError,
-        InvalidTickerError,
-        ModelInferenceError,
-        ServiceUnavailableError,
-        TickerNotFoundError,
-    )
+    from src.api.utils.exceptions import (APIException, InsufficientDataError,
+                                          InvalidTickerError,
+                                          ModelInferenceError,
+                                          ServiceUnavailableError,
+                                          TickerNotFoundError)
 
     @app.errorhandler(APIException)
     def handle_api_exception(error):

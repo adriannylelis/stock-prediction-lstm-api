@@ -1,6 +1,7 @@
-from flask import Blueprint, jsonify, current_app
 import json
 from pathlib import Path
+
+from flask import Blueprint, current_app, jsonify
 
 PROD_CONFIG_PATH = (
     Path(__file__).parent.parent.parent.parent / "configs" / "production_model.yaml"

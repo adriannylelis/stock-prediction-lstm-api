@@ -3,6 +3,6 @@
 __version__ = "0.1.0"
 
 # Exposing submodules
-from . import models, data, pipeline, training, monitoring, utils
+from . import data, models, monitoring, pipeline, training, utils
 
 __all__ = ["models", "data", "pipeline", "training", "monitoring", "utils"]

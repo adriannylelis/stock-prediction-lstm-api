@@ -6,7 +6,8 @@ e métricas de acurácia do modelo.
 """
 
 import logging
-from flask import Blueprint, jsonify, request, current_app
+
+from flask import Blueprint, current_app, jsonify, request
 
 from src.api.services.firestore_service import FirestoreService
 from src.api.utils.validators import validate_ticker

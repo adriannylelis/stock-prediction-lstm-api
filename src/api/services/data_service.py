@@ -1,14 +1,13 @@
-import yfinance as yf
-import pandas as pd
+import logging
 from datetime import datetime, timedelta
 from typing import Optional
-import logging
 
-from src.api.utils.exceptions import (
-    TickerNotFoundError,
-    InsufficientDataError,
-    ServiceUnavailableError,
-)
+import pandas as pd
+import yfinance as yf
+
+from src.api.utils.exceptions import (InsufficientDataError,
+                                      ServiceUnavailableError,
+                                      TickerNotFoundError)
 
 logger = logging.getLogger(__name__)
 

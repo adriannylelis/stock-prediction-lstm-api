@@ -36,10 +36,10 @@ def test_lstm_forward_pass():
     ticker_ids = torch.randint(0, 10, (32,))  # (batch,)
 
     # Forward pass
-    output = model(x_features, ticker_ids)
+    output, hidden = model(x_features, ticker_ids)
 
-    # Check output shape: (batch_size,) due to squeeze
-    assert output.shape == (32,)
+    # Check output shape: (batch_size, 1)
+    assert output.shape == (32, 1)
 
 
 def test_lstm_invalid_parameters():

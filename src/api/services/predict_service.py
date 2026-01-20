@@ -7,13 +7,10 @@ import torch
 
 from src.api.services.data_service import DataService
 from src.api.services.model_service import ModelService
-from src.api.utils.exceptions import (
-    InsufficientDataError,
-    InvalidTickerError,
-    ModelInferenceError,
-    ServiceUnavailableError,
-    TickerNotFoundError,
-)
+from src.api.utils.exceptions import (InsufficientDataError,
+                                      InvalidTickerError, ModelInferenceError,
+                                      ServiceUnavailableError,
+                                      TickerNotFoundError)
 from src.api.utils.validators import normalize_ticker
 
 logger = logging.getLogger(__name__)
