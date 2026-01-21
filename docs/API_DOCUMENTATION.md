@@ -13,9 +13,10 @@ Documentação completa da arquitetura, fluxos e componentes da Stock Prediction
 5. [Serviços](#serviços)
 6. [Sistema de Exceções](#sistema-de-exceções)
 7. [Validadores](#validadores)
-8. [Segurança](#segurança)
-9. [Performance](#performance)
-10. [Troubleshooting](#troubleshooting)
+8. [Rate Limiting](#rate-limiting)
+9. [Segurança](#segurança)
+10. [Performance](#performance)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -1084,7 +1085,174 @@ normalize_ticker("BrK-b")      # "BRK-B"
 
 ---
 
-## 🔐 Segurança
+## � Rate Limiting
+
+### Visão Geral
+
+A API implementa rate limiting para proteger contra abuso, garantir fair usage e controlar custos de recursos externos (Yahoo Finance, Firestore, inferência LSTM).
+
+**Biblioteca:** Flask-Limiter 3.5+  
+**Storage:** In-memory (desenvolvimento) ou Redis (produção)  
+**Estratégia:** Fixed-window (janela fixa de 1 minuto)
+
+### Limites por Endpoint
+
+| Endpoint | Limite | Justificativa |
+|----------|--------|---------------|
+| `GET /health` | 100/min | Health checks frequentes para monitoramento |
+| `GET /model/info` | 30/min | Read-only, pode ser cacheado |
+| `POST /predict` | **10/min** | Custoso (Yahoo Finance + LSTM + Firestore write) |
+| `GET /analytics/*` | 30/min | Queries Firestore, moderado |
+
+### Headers HTTP de Resposta
+
+Todas as respostas incluem headers informativos:
+
+```
+X-RateLimit-Limit: 10          # Limite máximo
+X-RateLimit-Remaining: 7       # Requests restantes
+X-RateLimit-Reset: 1642538400  # Timestamp do reset (Unix epoch)
+```
+
+### Erro 429 - Rate Limit Exceeded
+
+**Request:**
+```bash
+# 11ª requisição em 1 minuto para /predict
+curl -X POST http://localhost:5001/predict \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "AAPL"}'
+```
+
+**Response (429 Too Many Requests):**
+```json
+{
+  "error": "RateLimitExceeded",
+  "message": "Limite de requisições excedido. Tente novamente em alguns instantes.",
+  "status": 429,
+  "retry_after": "1 per 1 minute"
+}
+```
+
+### Configuração via Variáveis de Ambiente
+
+```bash
+# Habilitar/desabilitar rate limiting
+RATE_LIMIT_ENABLED=true  # ou false
+
+# Storage backend
+RATE_LIMIT_STORAGE_URI=memory://  # desenvolvimento
+RATE_LIMIT_STORAGE_URI=redis://redis:6379/0  # produção com Redis
+
+# Estratégia de contagem
+RATE_LIMIT_STRATEGY=fixed-window  # ou moving-window
+```
+
+### Desabilitar Rate Limiting (Testes)
+
+Para testes automatizados ou ambientes de desenvolvimento:
+
+```python
+# No código
+app = create_app(config={
+    "TESTING": True,
+    "RATE_LIMIT_ENABLED": False
+})
+```
+
+```bash
+# Via env var
+export RATE_LIMIT_ENABLED=false
+python src/api/main.py
+```
+
+### Implementação com Redis (Opcional)
+
+Para ambientes com múltiplas instâncias, use Redis para compartilhar contadores:
+
+**docker-compose.yml:**
+```yaml
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    environment:
+      - RATE_LIMIT_STORAGE_URI=redis://redis:6379/0
+    depends_on:
+      - redis
+```
+
+### Retry Logic (Cliente)
+
+Exemplo de implementação de retry com backoff exponencial:
+
+```python
+import time
+import requests
+
+def make_prediction_with_retry(ticker, max_retries=3):
+    """Faz predição com retry automático em caso de 429."""
+    for attempt in range(max_retries):
+        response = requests.post(
+            "http://localhost:5001/predict",
+            json={"ticker": ticker}
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        
+        elif response.status_code == 429:
+            retry_after = response.headers.get("Retry-After", 60)
+            wait_time = int(retry_after) if retry_after.isdigit() else 60
+            
+            print(f"Rate limited. Waiting {wait_time}s...")
+            time.sleep(wait_time)
+            continue
+        
+        else:
+            response.raise_for_status()
+    
+    raise Exception("Max retries exceeded")
+```
+
+### Monitoramento
+
+Para monitorar rate limiting em produção:
+
+```bash
+# Logs indicam quando rate limit é atingido
+grep "Rate limit excedido" /var/log/api.log
+
+# Em Redis, verificar contadores
+redis-cli KEYS "flask_rate_limit:*"
+redis-cli GET "flask_rate_limit:/predict:192.168.1.1"
+```
+
+### Como Aumentar Limites
+
+Se precisar de limites maiores para uso específico:
+
+1. **Desenvolvimento:** Editar `src/api/config/rate_limit.py`
+   ```python
+   RATE_LIMITS = {
+       "predict": "50 per minute",  # Aumentado de 10 para 50
+   }
+   ```
+
+2. **Produção:** Criar endpoint autenticado com limites maiores
+3. **Enterprise:** Implementar API keys com quotas personalizadas
+
+---
+
+## �🔐 Segurança
 
 ### CORS (Cross-Origin Resource Sharing)
 

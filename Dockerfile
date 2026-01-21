@@ -12,7 +12,10 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     GOOGLE_CLOUD_PROJECT=stock-prediction-prod \
-    PORT=5001
+    PORT=5001 \
+    RATE_LIMIT_ENABLED=true \
+    RATE_LIMIT_STORAGE_URI=memory:// \
+    RATE_LIMIT_STRATEGY=fixed-window
 
 # Diretório de trabalho
 WORKDIR /app

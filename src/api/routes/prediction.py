@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, current_app, jsonify, request
 
+from src.api.main import limiter
 from src.api.services.firestore_service import FirestoreService
 from src.api.utils.exceptions import (APIException, InsufficientDataError,
                                       InvalidTickerError, ModelInferenceError,
@@ -60,6 +61,7 @@ def _update_past_predictions(firestore_svc, ticker, result):
 
 
 @prediction_bp.route("/predict", methods=["POST"])
+@limiter.limit("10 per minute")
 def predict():
     """
     Endpoint para predição do próximo dia + histórico de 30 dias.

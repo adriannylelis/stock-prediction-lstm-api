@@ -3,6 +3,8 @@ from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify
 
+from src.api.main import limiter
+
 PROD_CONFIG_PATH = (
     Path(__file__).parent.parent.parent.parent / "configs" / "production_model.yaml"
 )
@@ -24,6 +26,7 @@ model_info_bp = Blueprint("model_info", __name__)
 
 
 @model_info_bp.route("/model/info", methods=["GET"])
+@limiter.limit("30 per minute")
 def get_model_info():
     """Retorna configuração e métricas do modelo."""
     try:

@@ -2,6 +2,20 @@ import logging
 
 from flask import Flask, jsonify
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+from src.api.config.rate_limit import RATE_LIMIT_ENABLED, RATE_LIMIT_STORAGE
+
+# Inicializar limiter globalmente
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=RATE_LIMIT_STORAGE,
+    default_limits=["50 per minute"] if RATE_LIMIT_ENABLED else [],
+    enabled=RATE_LIMIT_ENABLED,
+    headers_enabled=True,
+    swallow_errors=True,  # Não quebrar se storage falhar
+)
 
 
 def create_app(config=None):
@@ -36,6 +50,10 @@ def create_app(config=None):
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
+    # Inicializar rate limiter
+    limiter.init_app(app)
+    app.logger.info(f"Rate limiting {'habilitado' if RATE_LIMIT_ENABLED else 'desabilitado'}")
+
     register_blueprints(app)
 
     register_error_handlers(app)
@@ -60,11 +78,28 @@ def register_blueprints(app):
 
 
 def register_error_handlers(app):
+    from flask_limiter.errors import RateLimitExceeded
+
     from src.api.utils.exceptions import (APIException, InsufficientDataError,
                                           InvalidTickerError,
                                           ModelInferenceError,
                                           ServiceUnavailableError,
                                           TickerNotFoundError)
+
+    @app.errorhandler(RateLimitExceeded)
+    def handle_rate_limit_exceeded(error):
+        app.logger.warning(f"Rate limit excedido: {error.description}")
+        return (
+            jsonify(
+                {
+                    "error": "RateLimitExceeded",
+                    "message": "Limite de requisições excedido. Tente novamente em alguns instantes.",
+                    "status": 429,
+                    "retry_after": error.description,
+                }
+            ),
+            429,
+        )
 
     @app.errorhandler(APIException)
     def handle_api_exception(error):

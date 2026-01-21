@@ -537,6 +537,47 @@ curl http://localhost:5001/analytics/AAPL/accuracy | python -m json.tool
 
 ---
 
+## 🚦 Rate Limiting
+
+A API implementa limites de requisições por minuto para proteger contra abuso e controlar custos:
+
+| Endpoint | Limite | Descrição |
+|----------|--------|-----------|
+| `GET /health` | 100/min | Health checks |
+| `GET /model/info` | 30/min | Informações do modelo |
+| `POST /predict` | **10/min** | Predições (custoso) |
+| `GET /analytics/*` | 30/min | Analytics e histórico |
+
+### Resposta quando limite é excedido
+
+```bash
+# 11ª requisição em 1 minuto
+curl -X POST http://localhost:5001/predict -H "Content-Type: application/json" -d '{"ticker": "AAPL"}'
+```
+
+```json
+{
+  "error": "RateLimitExceeded",
+  "message": "Limite de requisições excedido. Tente novamente em alguns instantes.",
+  "status": 429,
+  "retry_after": "1 per 1 minute"
+}
+```
+
+### Configuração
+
+```bash
+# Desabilitar rate limiting (desenvolvimento)
+export RATE_LIMIT_ENABLED=false
+
+# Usar Redis (produção com múltiplas instâncias)
+export RATE_LIMIT_STORAGE_URI=redis://redis:6379/0
+```
+
+**Ver detalhes:** [docs/API_DOCUMENTATION.md#rate-limiting](docs/API_DOCUMENTATION.md#rate-limiting)
+
+---
+
 ## 🧪 Testes
 
 ### **Executar Todos os Testes**
@@ -620,6 +661,7 @@ Coverage: 72.79%
 | **Data Processing** | pandas, numpy | latest |
 | **Data Source** | yfinance | latest |
 | **Database** | Google Cloud Firestore | latest |
+| **Rate Limiting** | Flask-Limiter | 3.5+ |
 | **Experiment Tracking** | MLflow | 2.9+ |
 | **Hyperparameter Tuning** | Optuna | 3.5+ |
 | **Testing** | pytest, pytest-cov | 8.0+, 7.0+ |

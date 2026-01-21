@@ -7,11 +7,15 @@ Author: MLOps Team
 Created: 2025-01-07
 """
 
+import os
 import tempfile
 from pathlib import Path
 
 import pytest
 import yaml
+
+# Desabilitar rate limiting em todos os testes
+os.environ["RATE_LIMIT_ENABLED"] = "false"
 
 
 @pytest.fixture

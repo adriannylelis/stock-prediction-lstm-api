@@ -18,6 +18,22 @@ services:
       retries: 5
       start_period: 10s
 
+  # Redis (opcional - para rate limiting persistente)
+  # Descomente para usar Redis ao invés de in-memory storage
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: redis-ratelimit
+  #   ports:
+  #     - "6379:6379"
+  #   networks:
+  #     - stock-network
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 5s
+  #     timeout: 3s
+  #     retries: 5
+  #   restart: unless-stopped
+
   # Backend API (Flask + LSTM)
   backend:
     build:
@@ -34,12 +50,20 @@ services:
       - PYTHONUNBUFFERED=1
       - GOOGLE_CLOUD_PROJECT=stock-prediction-local
       - FIRESTORE_EMULATOR_HOST=firestore:8080
+      # Rate Limiting
+      - RATE_LIMIT_ENABLED=true
+      - RATE_LIMIT_STORAGE_URI=memory://
+      # Para usar Redis, descomente:
+      # - RATE_LIMIT_STORAGE_URI=redis://redis:6379/0
     volumes:
       - ./artifacts:/app/artifacts
       - ./data:/app/data
     depends_on:
       firestore:
         condition: service_healthy
+      # Se usar Redis, adicione:
+      # redis:
+      #   condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
       interval: 30s
