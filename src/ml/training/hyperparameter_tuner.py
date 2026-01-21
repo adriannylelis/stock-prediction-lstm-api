@@ -68,7 +68,6 @@ class HyperparameterTuner:
         self.device = torch.device(device)
         self.experiment_name = experiment_name
 
-        # Create Optuna study
         self.study = optuna.create_study(
             study_name=study_name,
             direction="minimize",  # Minimize validation loss
@@ -122,7 +121,6 @@ class HyperparameterTuner:
             f"batch={batch_size}, wd={weight_decay:.6f}"
         )
 
-        # Create model
         input_size = self.X_train.shape[2]  # Number of features
         model = create_model(
             input_size=input_size,
@@ -132,10 +130,8 @@ class HyperparameterTuner:
             device=self.device,
         )
 
-        # Create dataloaders
         train_loader, val_loader = self._create_dataloaders(batch_size)
 
-        # Create trainer
         trainer = Trainer(
             model=model,
             device=self.device,
@@ -148,7 +144,6 @@ class HyperparameterTuner:
             tracking_uri="file:data/mlflow/tracking",
         )
 
-        # Train with reduced epochs for faster trials
         max_epochs = 30  # Reduced for tuning speed
 
         try:
@@ -156,7 +151,6 @@ class HyperparameterTuner:
                 train_loader=train_loader, val_loader=val_loader, epochs=max_epochs
             )
 
-            # Get best validation loss
             best_val_loss = min(history["val_loss"])
 
             logger.info(f"Trial {trial.number}: Best Val Loss = {best_val_loss:.6f}")
@@ -194,7 +188,6 @@ class HyperparameterTuner:
             show_progress_bar=show_progress,
         )
 
-        # Get best parameters
         best_params = self.study.best_params
         best_value = self.study.best_value
 
@@ -237,7 +230,6 @@ class HyperparameterTuner:
             plot_optimization_history(self.study, ax=ax1)
             ax1.set_title("Optimization History")
 
-            # Plot parameter importances
             plot_param_importances(self.study, ax=ax2)
             ax2.set_title("Hyperparameter Importances")
 

@@ -50,7 +50,6 @@ class TestMLOpsComplete:
         print("FIXTURE: Ensuring Production Model Exists")
         print("=" * 80)
 
-        # Check if there's already a production model
         import yaml
 
         config_path = Path("configs/production_model.yaml")
@@ -94,7 +93,6 @@ class TestMLOpsComplete:
         result = pipeline.run()
         assert result.success, f"Failed to create production model: {result.error}"
 
-        # Promote to production
         promotion = AutoPromotionPipeline(
             new_model_version=result.version,
             model_name="stock-lstm-model",
@@ -129,7 +127,6 @@ class TestMLOpsComplete:
         print("TEST 1: Training Pipeline with Optuna Tracking")
         print("=" * 80)
 
-        # Create pipeline with small dataset for speed
         pipeline = AutoTrainingPipeline(
             tickers=["PETR4.SA", "VALE3.SA"],
             epochs=5,  # Fast test
@@ -148,7 +145,6 @@ class TestMLOpsComplete:
         assert "R2" in result.metrics  # Test metrics (not val metrics)
         assert "MAE" in result.metrics
 
-        # Verify MLflow tracking
         client = mlflow.MlflowClient()
         experiment = client.get_experiment_by_name(experiment_name)
         assert experiment is not None
@@ -156,7 +152,6 @@ class TestMLOpsComplete:
         runs = client.search_runs(experiment.experiment_id)
         assert len(runs) >= 1, "No runs found in MLflow"
 
-        # Check model status (should be None)
         for run in runs:
             print(f"   Run ID: {run.info.run_id}")
             print(f"   Metrics: {run.data.metrics}")
@@ -189,16 +184,13 @@ class TestMLOpsComplete:
         # First train a model
         training_result = self.test_1_training_with_optuna(experiment_name)
 
-        # Verify model is in Staging (trainer auto-promotes if metrics are good)
         client = mlflow.MlflowClient()
         model_name = "stock-lstm-model"
 
-        # Get model version details
         model_version = client.get_model_version(
             name=model_name, version=str(training_result["version"])
         )
 
-        # Verify stage (trainer promotes to Staging automatically if val_loss < threshold)
         assert model_version.current_stage in [
             "Staging",
             "None",
@@ -240,7 +232,6 @@ class TestMLOpsComplete:
         print("TEST 3: Model Promotion to Production")
         print("=" * 80)
 
-        # Get model from staging
         training_result = self.test_2_model_promotion_staging(experiment_name)
 
         # Use AutoPromotionPipeline to promote to production
@@ -254,7 +245,6 @@ class TestMLOpsComplete:
 
         result = promotion_pipeline.run_with_deploy()
 
-        # Verify promotion happened (should be True for first model or if better than current)
         # Note: Promotion pode falhar se thresholds são muito rígidos - isso é esperado para modelos ruins
         if not result.promoted:
             print(
@@ -262,7 +252,6 @@ class TestMLOpsComplete:
             )
             pytest.skip(f"Model not promoted due to strict criteria: {result.reason}")
 
-        # Verify model is now in Production stage
         client = mlflow.MlflowClient()
         model_version = client.get_model_version(
             name="stock-lstm-model", version=str(training_result["version"])
@@ -296,19 +285,16 @@ class TestMLOpsComplete:
         # Use production model from fixture
         print(f"Using production model: {production_model['model_uri']}")
 
-        # Load model via ModelService (singleton - no parameters)
         service = ModelService()
 
         assert service.is_ready(), "ModelService should be ready"
         assert service.model is not None
         assert service.scaler is not None
 
-        # Get num_features from loaded model (avoid hardcoding)
         import numpy as np
 
         # Extract num_features from model architecture
         # Model expects: (batch, seq_len, num_features)
-        # LSTM input_size = num_features + embedding_dim
         num_features = service.model.num_features
         lookback = service.config.get("lookback", 60) if service.config else 60
 
@@ -407,12 +393,10 @@ class TestMLOpsComplete:
         assert result.success, f"Training failed: {result.error}"
         assert result.model_uri is not None
 
-        # Load model to verify architecture
         import mlflow.pytorch
 
         model = mlflow.pytorch.load_model(result.model_uri)
 
-        # Verify embedding architecture
         assert hasattr(
             model, "ticker_embedding"
         ), "Model must have ticker_embedding layer"
@@ -423,7 +407,6 @@ class TestMLOpsComplete:
             model.ticker_embedding.embedding_dim == 8
         ), "Embedding dimension should be 8"
 
-        # Verify ALL tickers were used (43 from B3_TICKERS)
         assert (
             len(resolved_tickers) == 43
         ), f"Should use all 43 tickers, got {len(resolved_tickers)}"

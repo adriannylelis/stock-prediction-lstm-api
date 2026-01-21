@@ -3,6 +3,8 @@ from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify
 
+from src.api.main import limiter
+
 PROD_CONFIG_PATH = (
     Path(__file__).parent.parent.parent.parent / "configs" / "production_model.yaml"
 )
@@ -24,8 +26,8 @@ model_info_bp = Blueprint("model_info", __name__)
 
 
 @model_info_bp.route("/model/info", methods=["GET"])
+@limiter.limit("30 per minute")
 def get_model_info():
-    """Retorna configuração e métricas do modelo."""
     try:
         response = {
             "architecture": "StockLSTM",
@@ -36,7 +38,6 @@ def get_model_info():
             "stage": "unknown",
         }
 
-        # Enriquecer com preprocessing_config.json se existir
         if PREP_CONFIG_PATH.exists():
             with open(PREP_CONFIG_PATH, "r") as f:
                 prep_cfg = json.load(f)
@@ -46,7 +47,6 @@ def get_model_info():
             response["num_tickers"] = prep_cfg.get("num_tickers")
             response["tickers"] = prep_cfg.get("ticker_list")
 
-        # Enriquecer com production_model.yaml se existir
         if PROD_CONFIG_PATH.exists():
             import yaml
 
@@ -56,7 +56,6 @@ def get_model_info():
             response["stage"] = prod_cfg.get("stage", response["stage"])
             response["deployed_at"] = prod_cfg.get("deployed_at")
 
-        # Melhor esforço para ler métricas do checkpoint
         if CHECKPOINT_PATH.exists():
             import torch
 

@@ -65,7 +65,6 @@ class StockLSTM(nn.Module):
         Returns:
             Tensor: Output predictions of shape (batch_size, 1).
         """
-        # LSTM forward pass
         # output shape: (batch_size, seq_len, hidden_size)
         # h_n shape: (num_layers, batch_size, hidden_size)
         output, (h_n, c_n) = self.lstm(x)

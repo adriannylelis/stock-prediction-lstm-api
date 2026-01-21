@@ -17,7 +17,6 @@ import requests
 
 BASE_URL = "http://localhost:5001"
 
-# Cores para output
 GREEN = "\033[92m"
 RED = "\033[91m"
 YELLOW = "\033[93m"

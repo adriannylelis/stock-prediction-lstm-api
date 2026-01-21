@@ -163,7 +163,6 @@ class AutoTrainingPipeline:
         # Resolve tickers
         self.tickers = self._resolve_tickers(tickers)
 
-        # Training params
         self.start_date = start_date
         self.lookback = lookback
         self.hidden_size = hidden_size
@@ -235,7 +234,6 @@ class AutoTrainingPipeline:
 
             result = pipeline.run()
 
-            # Try to get model URI from MLflow
             try:
                 from mlflow.tracking import MlflowClient
 

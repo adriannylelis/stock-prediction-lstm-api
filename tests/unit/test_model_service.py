@@ -44,7 +44,6 @@ def temp_production_config():
 
     yield temp_path
 
-    # Cleanup with retry for Windows
     import time
 
     for _ in range(3):
@@ -64,7 +63,6 @@ def temp_artifacts_dir():
         scalers_path = artifacts_path / "scalers"
         scalers_path.mkdir(parents=True)
 
-        # Checkpoint with minimal metadata and empty state dict
         checkpoint = {
             "num_tickers": 1,
             "num_features": 5,
@@ -185,7 +183,6 @@ def test_fallback_to_local_when_mlflow_fails(
         with patch("src.api.services.model_service.StockLSTM", return_value=mock_model):
             with patch("torch.load", return_value=checkpoint):
                 with patch("joblib.load", return_value={"scaler": "x"}):
-                    # Create service without auto-loading
                     service = ModelService.__new__(ModelService)
                     service._initialized = False
                     service.model = None
@@ -286,7 +283,6 @@ def test_is_ready_false_with_missing_components(missing_component):
     service.scaler = Mock()
     service.config = {"input_size": 5}
 
-    # Set one component to None
     setattr(service, missing_component, None)
 
     assert service.is_ready() is False

@@ -102,7 +102,6 @@ class DataVersionManager:
         else:
             df = pd.read_parquet(data_path)
 
-        # Restore index if it was a DatetimeIndex
         if "Date" in df.columns or "date" in df.columns:
             date_col = "Date" if "Date" in df.columns else "date"
             df[date_col] = pd.to_datetime(df[date_col])

@@ -49,10 +49,8 @@ class ExperimentTracker:
         self.experiment_name = experiment_name
         self.tracking_uri = tracking_uri
 
-        # Set tracking URI
         mlflow.set_tracking_uri(tracking_uri)
 
-        # Create or get experiment
         try:
             experiment = mlflow.get_experiment_by_name(experiment_name)
             if experiment is None:
@@ -97,11 +95,9 @@ class ExperimentTracker:
         self.run = mlflow.start_run(run_name=run_name)
         self.run_name = run_name
 
-        # Set tags
         if tags:
             mlflow.set_tags(tags)
 
-        # Set description
         if description:
             mlflow.set_tag("mlflow.note.content", description)
 

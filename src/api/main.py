@@ -2,6 +2,19 @@ import logging
 
 from flask import Flask, jsonify
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+from src.api.config.rate_limit import RATE_LIMIT_ENABLED, RATE_LIMIT_STORAGE
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=RATE_LIMIT_STORAGE,
+    default_limits=["50 per minute"] if RATE_LIMIT_ENABLED else [],
+    enabled=RATE_LIMIT_ENABLED,
+    headers_enabled=True,
+    swallow_errors=True,
+)
 
 
 def create_app(config=None):
@@ -11,14 +24,13 @@ def create_app(config=None):
         {
             "JSON_SORT_KEYS": False,
             "JSONIFY_PRETTYPRINT_REGULAR": True,
-            "MAX_CONTENT_LENGTH": 16 * 1024 * 1024,  # 16MB max
+            "MAX_CONTENT_LENGTH": 16 * 1024 * 1024,
         }
     )
 
     if config:
         app.config.update(config)
 
-    # Configurar CORS
     CORS(
         app,
         resources={
@@ -30,14 +42,17 @@ def create_app(config=None):
         },
     )
 
-    # Configurar logging
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    register_blueprints(app)
+    limiter.init_app(app)
+    app.logger.info(
+        f"Rate limiting {'habilitado' if RATE_LIMIT_ENABLED else 'desabilitado'}"
+    )
 
+    register_blueprints(app)
     register_error_handlers(app)
 
     app.logger.info("API Flask inicializada com sucesso")
@@ -56,15 +71,34 @@ def register_blueprints(app):
     app.register_blueprint(prediction_bp)
     app.register_blueprint(analytics_bp)
 
-    app.logger.info("Blueprints registrados: health, model_info, prediction, analytics")
+    app.logger.info(
+        "Blueprints registrados: health, model_info, prediction, analytics"
+    )
 
 
 def register_error_handlers(app):
+    from flask_limiter.errors import RateLimitExceeded
+
     from src.api.utils.exceptions import (APIException, InsufficientDataError,
                                           InvalidTickerError,
                                           ModelInferenceError,
                                           ServiceUnavailableError,
                                           TickerNotFoundError)
+
+    @app.errorhandler(RateLimitExceeded)
+    def handle_rate_limit_exceeded(error):
+        app.logger.warning(f"Rate limit excedido: {error.description}")
+        return (
+            jsonify(
+                {
+                    "error": "RateLimitExceeded",
+                    "message": "Limite de requisições excedido. Tente novamente em alguns instantes.",
+                    "status": 429,
+                    "retry_after": error.description,
+                }
+            ),
+            429,
+        )
 
     @app.errorhandler(APIException)
     def handle_api_exception(error):
@@ -94,10 +128,8 @@ def register_error_handlers(app):
     @app.errorhandler(ServiceUnavailableError)
     def handle_service_unavailable(error):
         app.logger.error(f"Serviço indisponível: {str(error)}")
-        app.logger.error(f"Serviço indisponível: {str(error)}")
         return jsonify(error.to_dict()), error.status_code
 
-    # Handlers para erros HTTP padrão
     @app.errorhandler(404)
     def not_found(error):
         return (
@@ -156,8 +188,6 @@ def register_error_handlers(app):
 if __name__ == "__main__":
     import os
 
-    # Use PORT env var, default to 5001
-    # Note: Can be overridden via FLASK_PORT or PORT env vars
     port = int(os.environ.get("FLASK_PORT", os.environ.get("PORT", 5001)))
 
     app = create_app()

@@ -1,22 +1,19 @@
 """
 pytest configuration and shared fixtures
-
-This file defines pytest fixtures available to all tests.
-
-Author: MLOps Team
-Created: 2025-01-07
 """
 
+import os
 import tempfile
 from pathlib import Path
 
 import pytest
 import yaml
 
+os.environ["RATE_LIMIT_ENABLED"] = "false"
+
 
 @pytest.fixture
 def temp_mlflow_tracking():
-    """Create temporary MLflow tracking directory"""
     with tempfile.TemporaryDirectory() as tmpdir:
         tracking_path = Path(tmpdir) / "data" / "mlflow" / "tracking"
         tracking_path.mkdir(parents=True)
@@ -25,7 +22,6 @@ def temp_mlflow_tracking():
 
 @pytest.fixture
 def temp_mlflow_artifacts():
-    """Create temporary MLflow artifacts directory"""
     with tempfile.TemporaryDirectory() as tmpdir:
         artifacts_path = Path(tmpdir) / "data" / "mlflow" / "artifacts"
         artifacts_path.mkdir(parents=True)
@@ -34,7 +30,6 @@ def temp_mlflow_artifacts():
 
 @pytest.fixture
 def temp_production_config():
-    """Create temporary production config file"""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         config = {
             "model_uri": "models:/test-model/1",
@@ -51,7 +46,6 @@ def temp_production_config():
 
 @pytest.fixture
 def mock_model_config():
-    """Mock model configuration dict"""
     return {
         "input_size": 5,
         "hidden_size": 16,
@@ -64,7 +58,6 @@ def mock_model_config():
 
 @pytest.fixture
 def mock_training_metrics():
-    """Mock training metrics"""
     return {
         "train_loss": 0.015,
         "val_loss": 0.020,
@@ -75,9 +68,7 @@ def mock_training_metrics():
     }
 
 
-# Configure pytest
 def pytest_configure(config):
-    """Configure pytest"""
     config.addinivalue_line(
         "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
     )

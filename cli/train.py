@@ -187,7 +187,6 @@ def train(
         )
 
     try:
-        # Create pipeline
         if ticker_list:
             # Multi-ticker
             pipeline = TrainPipeline(

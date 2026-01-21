@@ -42,7 +42,6 @@ class StockLSTM(nn.Module):
         num_layers: int = 3,
         dropout: float = 0.3,
         bidirectional: bool = False,
-        # Legacy parameters
         input_size: Optional[int] = None,
         output_size: int = 1,
     ):
@@ -65,7 +64,6 @@ class StockLSTM(nn.Module):
         self.output_size = output_size
         self.bidirectional = bidirectional
 
-        # Multiplicador para bidirectional
         self.num_directions = 2 if bidirectional else 1
 
         # Ticker embedding (if num_tickers > 1)
@@ -114,12 +112,9 @@ class StockLSTM(nn.Module):
         if self.ticker_embedding is not None and ticker_ids is not None:
             # ticker_emb: (batch_size, embedding_dim)
             ticker_emb = self.ticker_embedding(ticker_ids)
-            # Expand to sequence length: (batch_size, seq_len, embedding_dim)
             ticker_emb = ticker_emb.unsqueeze(1).expand(-1, x.size(1), -1)
-            # Concatenate with features
             x = torch.cat([x, ticker_emb], dim=-1)
 
-        # LSTM forward
         # lstm_out: (batch_size, seq_len, hidden_size * num_directions)
         lstm_out, hidden = self.lstm(x, hidden)
 

@@ -98,7 +98,6 @@ class ModelComparator:
             ModelMetrics with all metrics calculated
         """
         try:
-            # Load model
             model = mlflow.pytorch.load_model(model_uri)
             model = model.to(device)
             model.eval()
@@ -113,7 +112,6 @@ class ModelComparator:
                     except:
                         version = parts[-1]  # Might be "Production", "Staging"
 
-            # Measure inference time
             start_time = time.time()
 
             predictions = []
@@ -132,7 +130,6 @@ class ModelComparator:
             )
 
             with torch.no_grad():
-                # Run in batches for more realistic timing
                 batch_size = 32
                 for i in range(0, len(X_test), batch_size):
                     X_batch = X_test[i : i + batch_size].to(device)
@@ -199,7 +196,6 @@ class ModelComparator:
         # Generate test data if not provided
         if X_test is None or y_test is None:
             logger.warning("No test data provided, using random data for comparison")
-            # Detect input_size from first model to generate compatible test data
             try:
                 first_model = mlflow.pytorch.load_model(
                     model_uris[0], map_location=device
@@ -282,7 +278,6 @@ class ModelComparator:
             "|-------|---------|-----|------|----|----- |---------|----------|"
         )
 
-        # Rows
         for i, m in enumerate(models):
             is_winner = i == winner_idx
             prefix = "🏆 " if is_winner else "   "
@@ -341,11 +336,9 @@ if __name__ == "__main__":
     # Test comparator
     comparator = ModelComparator()
 
-    # Example: Compare two model versions
     # report = comparator.compare([
     #     "models:/lstm-multi-ticker/5",
     #     "models:/lstm-multi-ticker/4"
-    # ])
     # report.print_report()
 
     logger.info("Model Comparator module loaded successfully")

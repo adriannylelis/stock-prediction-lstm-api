@@ -37,18 +37,18 @@ class ModelService:
             return
 
         self.project_root = Path(__file__).parent.parent.parent.parent
-        self.artifacts_path = self.project_root / "artifacts" / "models"  # ✅ Updated
+        self.artifacts_path = self.project_root / "artifacts" / "models"
         self.production_config_path = (
             self.project_root / "configs" / "production_model.yaml"
         )
 
         self.model = None
-        self.scaler = None  # X features scaler (19 cols)
-        self.y_scaler = None  # y target scaler (1 col)
+        self.scaler = None
+        self.y_scaler = None
         self.config = None
         self.model_uri = None
-        self.ticker_to_id = {}  # Mapping ticker → ID para multi-ticker
-        self.num_tickers = 1  # Default: single-ticker
+        self.ticker_to_id = {}
+        self.num_tickers = 1
         self.allowed_tickers: List[str] = []
 
         self._load_artifacts()
@@ -69,9 +69,8 @@ class ModelService:
         try:
             logger.info(f"Loading model from MLflow: {model_uri}")
 
-            # Set tracking URI if not already set
             if not skip_tracking_uri:
-                tracking_uri = "file:data/mlflow/tracking"  # Default
+                tracking_uri = "file:data/mlflow/tracking"
                 if self.production_config_path.exists():
                     try:
                         with open(self.production_config_path) as f:
@@ -83,12 +82,10 @@ class ModelService:
                 mlflow.set_tracking_uri(tracking_uri)
                 logger.info(f"📍 MLflow tracking URI: {tracking_uri}")
 
-            # Load model
             self.model = mlflow.pytorch.load_model(model_uri)
             self.model.eval()
             logger.info("✅ Model loaded from MLflow")
 
-            # Try to load scaler from MLflow artifacts
             scaler_loaded = False
             try:
                 client = mlflow.tracking.MlflowClient()
@@ -104,7 +101,6 @@ class ModelService:
                     model_name = parts[1]
                     version_or_stage = parts[2]
 
-                    # Get the model version
                     if version_or_stage.isdigit():
                         version = version_or_stage
                     else:
@@ -119,7 +115,6 @@ class ModelService:
                                 f"No model found in stage '{version_or_stage}'"
                             )
 
-                    # Get the run_id from the model version
                     model_version = client.get_model_version(model_name, version)
                     run_id = model_version.run_id
                     logger.info(f"📌 Extracted run_id: {run_id} from {model_uri}")
@@ -134,7 +129,6 @@ class ModelService:
                         )
                         scaler_loaded = True
 
-                        # Try to load y_scaler as well
                         try:
                             y_scaler_path = client.download_artifacts(
                                 run_id, "y_scaler.pkl"
@@ -174,10 +168,8 @@ class ModelService:
 
                 logger.debug(traceback.format_exc())
 
-            # Try to load ticker mapping for multi-ticker support
             if run_id:
                 try:
-                    # Try to load preprocessing config which may contain ticker mapping
                     preprocessing_config_path = client.download_artifacts(
                         run_id, "preprocessing_config.json"
                     )
@@ -188,7 +180,6 @@ class ModelService:
                             prep_config = json.load(f)
 
                         self.config = prep_config
-                        # Check if it's a multi-ticker model
                         if "ticker_to_id" in prep_config:
                             self.ticker_to_id = prep_config["ticker_to_id"]
                             self.num_tickers = len(self.ticker_to_id)
@@ -196,7 +187,6 @@ class ModelService:
                                 f"✅ Loaded multi-ticker mapping: {self.num_tickers} tickers"
                             )
                         elif "ticker_list" in prep_config:
-                            # Create mapping from list
                             ticker_list = prep_config["ticker_list"]
                             self.ticker_to_id = {
                                 ticker: idx for idx, ticker in enumerate(ticker_list)
@@ -214,7 +204,6 @@ class ModelService:
                     logger.debug(f"No ticker mapping found in MLflow: {e}")
                     self.num_tickers = 1
 
-            # If scaler not found in MLflow, try local artifacts as fallback
             if not scaler_loaded:
                 logger.warning(
                     "⚠️ Scaler not found in MLflow, trying local artifacts..."
@@ -257,7 +246,6 @@ class ModelService:
                     self.scaler = StandardScaler()
                     logger.warning("⚠️ Using unfitted scaler - predictions WILL FAIL")
 
-            # Set config (basic info for is_ready check)
             self.config = {
                 "model_uri": model_uri,
                 "loaded_from": "mlflow",
@@ -313,7 +301,6 @@ class ModelService:
                 self.model.eval()
                 logger.info(f"✅ Modelo carregado do checkpoint: {model_path}")
             else:
-                # Fallback legado: tentar artefatos antigos (model_config.json + model_lstm_1x16.pt + scaler_corrected.pkl)
                 logger.info(
                     "Modelo novo não encontrado; tentando layout legado (model_lstm_1x16.pt)..."
                 )
@@ -365,7 +352,6 @@ class ModelService:
                 self.y_scaler = joblib.load(y_scaler_path)
                 logger.info(f"✅ y scaler carregado: {y_scaler_path}")
             else:
-                # Don't assign - let get_y_scaler() handle fallback
                 logger.info(
                     "ℹ️ y_scaler não encontrado; get_y_scaler() criará wrapper do X scaler"
                 )
@@ -575,7 +561,6 @@ class ModelService:
         if self.y_scaler is not None:
             return self.y_scaler
 
-        # Fallback: create single-column scaler from X scaler (first feature = Close)
         import numpy as np
         from sklearn.preprocessing import MinMaxScaler
 
@@ -660,7 +645,6 @@ class ModelService:
         import numpy as np
         import torch
 
-        # Convert to tensor if needed
         if isinstance(input_data, np.ndarray):
             input_tensor = torch.FloatTensor(input_data)
         else:
@@ -670,14 +654,12 @@ class ModelService:
         if input_tensor.dim() == 2:
             input_tensor = input_tensor.unsqueeze(0)
 
-        # Move to same device as model
         device = next(self.model.parameters()).device
         input_tensor = input_tensor.to(device)
 
         # Make prediction
         self.model.eval()
         with torch.no_grad():
-            # Check if model uses embeddings
             if hasattr(self.model, "ticker_embedding"):
                 ticker_ids = torch.tensor([ticker_id] * input_tensor.shape[0]).to(
                     device
@@ -690,7 +672,6 @@ class ModelService:
                     input_tensor
                 )  # Unpack tuple: (outputs, hidden_state)
 
-        # Convert to numpy
         predictions = output.cpu().numpy().flatten()
 
         return predictions

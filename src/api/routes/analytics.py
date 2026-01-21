@@ -9,6 +9,7 @@ import logging
 
 from flask import Blueprint, current_app, jsonify, request
 
+from src.api.main import limiter
 from src.api.services.firestore_service import FirestoreService
 from src.api.utils.validators import validate_ticker
 
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 @analytics_bp.route("/analytics/<ticker>", methods=["GET"])
+@limiter.limit("30 per minute")
 def get_analytics(ticker: str):
     """
     Retorna histórico de predições e métricas de acurácia para um ticker.
@@ -77,7 +79,6 @@ def get_analytics(ticker: str):
                 400,
             )
 
-        # Query parameters
         limit = request.args.get("limit", default=30, type=int)
         include_pending = (
             request.args.get("include_pending", default="false").lower() == "true"
@@ -172,6 +173,7 @@ def get_analytics(ticker: str):
 
 
 @analytics_bp.route("/analytics/<ticker>/pending", methods=["GET"])
+@limiter.limit("30 per minute")
 def get_pending_predictions(ticker: str):
     """
     Retorna predições pendentes (sem preço real) para um ticker.
@@ -245,6 +247,7 @@ def get_pending_predictions(ticker: str):
 
 
 @analytics_bp.route("/analytics/<ticker>/accuracy", methods=["GET"])
+@limiter.limit("30 per minute")
 def get_accuracy(ticker: str):
     """
     Retorna apenas métricas de acurácia para um ticker.
@@ -278,7 +281,6 @@ def get_accuracy(ticker: str):
                 400,
             )
 
-        # Query parameters
         limit = request.args.get("limit", default=100, type=int)
 
         if limit < 1 or limit > 500:

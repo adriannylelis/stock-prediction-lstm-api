@@ -79,7 +79,6 @@ def test_deploy_updates_config_file(temp_config_file, mock_mlflow_client):
             metadata={"version": 2, "metrics": {"r2": 0.90, "mae": 0.015}},
         )
 
-    # Verify config was updated
     with open(temp_config_file) as f:
         config = yaml.safe_load(f)
 
@@ -111,7 +110,6 @@ def test_smoke_test_passes_with_valid_model():
     # Valid output tensor
     valid_output = torch.tensor([[0.5], [0.6], [0.7]])
 
-    # Mock forward pass - needs to be callable
     def mock_forward(*args, **kwargs):
         return valid_output
 
@@ -178,7 +176,6 @@ def test_deploy_fails_on_failed_smoke_test(temp_config_file, mock_mlflow_client)
     assert result.smoke_test_passed is False
     assert "smoke test" in result.error.lower()
 
-    # Verify config was NOT updated (still version 1 from fixture)
     with open(temp_config_file) as f:
         config = yaml.safe_load(f)
 
