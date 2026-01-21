@@ -33,7 +33,6 @@ def setup_logger(
         >>> logger.info("Application started")
         >>> logger.debug("Debug message")
     """
-    # Remove default logger
     logger.remove()
 
     # Console logger with colors

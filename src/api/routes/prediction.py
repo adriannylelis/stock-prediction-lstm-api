@@ -43,7 +43,6 @@ def _update_past_predictions(firestore_svc, ticker, result):
             if not pred_date_str:
                 continue
 
-            # Converter para date
             pred_date = datetime.strptime(pred_date_str, "%Y-%m-%d").date()
 
             # Se a data da predição já passou, atualizar com preço atual

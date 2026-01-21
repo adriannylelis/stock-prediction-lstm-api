@@ -38,18 +38,15 @@ def test_train_pipeline_run():
 
     results = pipeline.run()
 
-    # Check results structure
     assert "model_path" in results
     assert "training_history" in results
     assert "test_metrics" in results
     assert "metadata" in results
 
-    # Check test metrics (keys are in uppercase)
     assert "MAE" in results["test_metrics"]
     assert "RMSE" in results["test_metrics"]
     assert "MAPE" in results["test_metrics"]
 
-    # Check metadata
     assert results["metadata"]["ticker"] == "PETR4.SA"
     assert results["metadata"]["epochs_trained"] <= 5
 
@@ -101,7 +98,6 @@ def test_predict_pipeline_predict(tmp_path):
 
     predictions = predict_pipeline.predict(days_ahead=3)
 
-    # Check DataFrame structure
     assert predictions is not None
     assert isinstance(predictions, pd.DataFrame)
     assert len(predictions) > 0

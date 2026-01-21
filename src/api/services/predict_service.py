@@ -37,7 +37,6 @@ class PredictService:
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
 
-            # Keep only OHLCV columns to match training data (5 columns)
             # Remove: Adj Close, Dividends, Stock Splits
             required_cols = ["Open", "High", "Low", "Close", "Volume"]
             extra_cols = [col for col in df.columns if col not in required_cols]
@@ -60,10 +59,8 @@ class PredictService:
                 ]
 
             current_price = float(df_features["Close"].iloc[-1])
-            # Get all 18 features (OHLCV + technical indicators)
             all_features = df_features.values  # Shape: (samples, 18)
 
-            # Check for NaN in features
             print(f"🔍 Features shape: {all_features.shape}")
             print(f"🔍 Features has NaN: {pd.isna(all_features).any()}")
             nan_counts = pd.isna(all_features).sum(axis=0)
@@ -84,7 +81,6 @@ class PredictService:
             # Detect device (CPU, CUDA, or MPS)
             device = next(model.parameters()).device
 
-            # Get last 60 sequences (lookback window)
             lookback = 60
             if len(scaled_data) < lookback:
                 raise InsufficientDataError(
@@ -95,7 +91,6 @@ class PredictService:
                 torch.FloatTensor(scaled_data[-lookback:]).unsqueeze(0).to(device)
             )  # Shape: (1, 60, 18)
 
-            # Get correct ticker_id (supports both single and multi-ticker models)
             ticker_id = self.model_service.get_ticker_id(ticker)
             ticker_ids = torch.tensor([ticker_id], dtype=torch.long).to(device)
 
@@ -159,7 +154,6 @@ class PredictService:
                     {"date": date.strftime("%Y-%m-%d"), "price": round(close, 2)}
                 )
 
-            # Retorna formato "flat" esperado pelo frontend
             return {
                 "ticker": ticker,
                 "predicted_price": round(predicted_price, 2),

@@ -44,7 +44,6 @@ def evaluate(model_path: str, ticker: str, start_date: str, lookback: int):
     """
     device = get_device()
 
-    # Get project root directory (2 levels up from cli/evaluate.py)
     project_root = Path(__file__).parent.parent.resolve()
 
     # Convert model_path to absolute path relative to project root

@@ -39,7 +39,6 @@ class TestFullPipeline:
 
     def test_train_pipeline_end_to_end(self, temp_artifacts_dir):
         """Test complete training pipeline from data ingestion to model save."""
-        # Create pipeline
         pipeline = TrainPipeline(
             ticker="PETR4.SA",
             start_date="2023-01-01",
@@ -61,16 +60,13 @@ class TestFullPipeline:
         assert "test_metrics" in results
         assert "metadata" in results
 
-        # Check model was saved (TrainPipeline saves as best_model.pt)
         assert Path(results["model_path"]).exists()
 
-        # Check metrics (keys are uppercase: MAE, RMSE, MAPE, R2)
         assert "RMSE" in results["test_metrics"]
         assert "MAE" in results["test_metrics"]
         assert "MAPE" in results["test_metrics"]
         assert "R2" in results["test_metrics"]
 
-        # Check training history
         assert len(results["training_history"]["train_loss"]) == 2
         assert len(results["training_history"]["val_loss"]) == 2
 
@@ -87,7 +83,6 @@ class TestFullPipeline:
         )
         train_results = train_pipeline.run()
 
-        # Create prediction pipeline (PredictPipeline only accepts model_identifier, ticker, lookback)
         predict_pipeline = PredictPipeline(
             model_identifier=train_results["model_path"], ticker="PETR4.SA", lookback=30
         )
@@ -108,7 +103,6 @@ class TestFullPipeline:
             base_path=temp_data_dir, auto_cleanup=True, max_versions=3
         )
 
-        # Create and save test data
         test_data = pd.DataFrame(
             {
                 "Close": np.random.random(100),
@@ -124,11 +118,9 @@ class TestFullPipeline:
             )
             versions.append(version)
 
-        # Check auto-cleanup (should keep only 3)
         remaining = manager.list_versions("TEST.SA")
         assert len(remaining) <= 3
 
-        # Load latest
         loaded_df = manager.load_latest("TEST.SA")
         assert len(loaded_df) == 100
         assert "Close" in loaded_df.columns
@@ -182,7 +174,6 @@ class TestPipelineIntegration:
         )
         predictions = predict_pipeline.predict(days_ahead=3)
 
-        # Verify predictions
         assert len(predictions) > 0
         assert predictions["Predicted_Close"].dtype in [np.float64, np.float32]
 

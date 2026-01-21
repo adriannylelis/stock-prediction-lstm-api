@@ -91,7 +91,6 @@ def test_update_actual_price(firestore_service):
     updated = firestore_service.update_actual_price(ticker, pred_date, 105.0)
     assert updated is True
 
-    # Verificar atualização
     predictions = firestore_service.get_predictions(ticker)
     assert predictions[0]["actual_price"] == 105.0
     assert "error" in predictions[0]

@@ -93,7 +93,6 @@ class EarlyStopping:
                 logger.info(f"Initial score: {score:.6f}")
             return False
 
-        # Check if score improved
         if self._is_improvement(score):
             improvement = abs(score - self.best_score)
             self.best_score = score

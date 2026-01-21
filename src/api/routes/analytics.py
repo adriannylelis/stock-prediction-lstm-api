@@ -79,7 +79,6 @@ def get_analytics(ticker: str):
                 400,
             )
 
-        # Query parameters
         limit = request.args.get("limit", default=30, type=int)
         include_pending = (
             request.args.get("include_pending", default="false").lower() == "true"
@@ -282,7 +281,6 @@ def get_accuracy(ticker: str):
                 400,
             )
 
-        # Query parameters
         limit = request.args.get("limit", default=100, type=int)
 
         if limit < 1 or limit > 500:

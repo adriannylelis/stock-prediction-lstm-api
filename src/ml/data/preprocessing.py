@@ -138,7 +138,6 @@ class StockPreprocessor:
         """
         lookback = lookback or self.lookback_period
 
-        # Convert to tensor if needed
         if isinstance(data, np.ndarray):
             data_tensor = torch.FloatTensor(data)
         else:
@@ -150,7 +149,6 @@ class StockPreprocessor:
         if len(data_tensor.shape) == 1:
             data_tensor = data_tensor.unsqueeze(1)  # [T] -> [T, 1]
 
-        # Create sequences: [samples - lookback, lookback, features]
         # unfold gera [num_windows, features, lookback], então precisamos ajustar
         X = data_tensor.unfold(0, lookback, 1).permute(
             0, 2, 1

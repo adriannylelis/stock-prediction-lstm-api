@@ -87,7 +87,6 @@ class AutoPromotionPipeline:
         self.client = MlflowClient(tracking_uri=tracking_uri)
         mlflow.set_tracking_uri(tracking_uri)
 
-        # Default criteria
         default_criteria = {
             "r2_improvement": 0.05,  # 5% better
             "mae_improvement": 0.02,  # 2% better
@@ -112,13 +111,11 @@ class AutoPromotionPipeline:
 
     def _get_production_model_uri(self) -> Optional[str]:
         """Get current production model from config or MLflow."""
-        # Try to get from config file
         deployer = ModelDeployer(tracking_uri=self.tracking_uri)
         config_model = deployer.get_current_production_model()
         if config_model:
             return config_model
 
-        # Try to get from MLflow Model Registry
         try:
             versions = self.client.search_model_versions(
                 f"name='{self.model_name}' AND tags.stage='Production'"
@@ -150,7 +147,6 @@ class AutoPromotionPipeline:
                 f"(R²={new_metrics['r2']:.4f}, MAE={new_metrics['mae']:.4f})"
             )
 
-        # Compare with production
         r2_current = prod_metrics["r2"]
         mae_current = prod_metrics["mae"]
 
@@ -165,11 +161,9 @@ class AutoPromotionPipeline:
             (mae_current - mae_new) / mae_current if mae_current != 0 else 0
         )
 
-        # Check if improvements meet thresholds
         r2_better = r2_improvement >= self.criteria["r2_improvement"]
         mae_better = mae_improvement >= self.criteria["mae_improvement"]
 
-        # Check absolute minimums
         r2_acceptable = r2_new >= self.criteria["min_r2"]
         mae_acceptable = mae_new <= self.criteria["max_mae"]
 
@@ -203,7 +197,6 @@ class AutoPromotionPipeline:
             True if successful
         """
         try:
-            # Transition to Production
             self.client.transition_model_version_stage(
                 name=self.model_name,
                 version=self.new_model_version,
@@ -398,7 +391,6 @@ if __name__ == "__main__":
     # pipeline = AutoPromotionPipeline(
     #     new_model_version=5,
     #     auto_deploy=True
-    # )
     # result = pipeline.run_with_deploy()
     # print(f"Promoted: {result.promoted}, Deployed: {result.deployed}")
 

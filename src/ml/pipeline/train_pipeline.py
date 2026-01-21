@@ -50,12 +50,10 @@ class TrainPipeline:
         train_ratio: float = 0.7,
         val_ratio: float = 0.15,
         test_ratio: float = 0.15,
-        # Model params
         hidden_size: int = 100,
         num_layers: int = 3,
         dropout: float = 0.3,
         embedding_dim: int = 8,  # For multi-ticker
-        # Training params
         learning_rate: float = 0.001,
         weight_decay: float = 0.0,
         batch_size: int = 64,
@@ -97,7 +95,6 @@ class TrainPipeline:
         """
         set_seed(seed)
 
-        # Validate ticker configuration
         if ticker and tickers:
             raise ValueError("Provide either 'ticker' OR 'tickers', not both")
         if not ticker and not tickers:
@@ -118,20 +115,17 @@ class TrainPipeline:
         else:
             self.tickers = [ticker]
 
-        # Data params
         self.start_date = start_date
         self.lookback = lookback
         self.train_ratio = train_ratio
         self.val_ratio = val_ratio
         self.test_ratio = test_ratio
 
-        # Model params
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.dropout = dropout
         self.embedding_dim = embedding_dim
 
-        # Training params
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.batch_size = batch_size
@@ -396,13 +390,11 @@ class TrainPipeline:
                 y_scaler = MinMaxScaler(feature_range=(0, 1))
                 y_normalized = y_scaler.fit_transform(y.reshape(-1, 1)).flatten()
 
-                # Convert to tensors
                 X_tensor = torch.FloatTensor(X_normalized).to(self.device)
                 y_tensor = torch.FloatTensor(y_normalized).to(
                     self.device
                 )  # Already 1D, no unsqueeze needed
 
-                # Create ticker IDs
                 ticker_id_tensor = torch.full(
                     (len(X_tensor),), ticker_to_id[ticker], dtype=torch.long
                 ).to(self.device)
@@ -486,7 +478,6 @@ class TrainPipeline:
         """Create LSTM model (single or multi-ticker)."""
         logger.info("🏗️ Creating model...")
 
-        # Even for single-ticker, we need embedding > 0 (model architecture requires it)
         # For single-ticker: use small embedding (4), for multi-ticker: use configured embedding_dim
         embedding_dim_to_use = 4 if not self.is_multi_ticker else self.embedding_dim
 
@@ -563,7 +554,6 @@ class TrainPipeline:
         y_scaler_path = scaler_dir / "y_scaler.pkl"
         preprocessing_config_path = scaler_dir / "preprocessing_config.json"
 
-        # Extra params for MLflow
         extra_params = {
             "tickers": ", ".join(self.tickers),
             "num_tickers": self.data["num_tickers"],

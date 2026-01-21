@@ -31,14 +31,12 @@ def test_lstm_forward_pass():
         num_tickers=10, num_features=19, embedding_dim=8, hidden_size=50, num_layers=2
     )
 
-    # Create dummy inputs
     x_features = torch.randn(32, 60, 19)  # (batch, seq, features)
     ticker_ids = torch.randint(0, 10, (32,))  # (batch,)
 
     # Forward pass
     output, hidden = model(x_features, ticker_ids)
 
-    # Check output shape: (batch_size, 1)
     assert output.shape == (32, 1)
 
 

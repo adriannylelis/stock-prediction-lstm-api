@@ -81,22 +81,18 @@ class ModelDeployer:
         try:
             logger.info("🧪 Running smoke test...")
 
-            # Load model
             model = mlflow.pytorch.load_model(model_uri)
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             model = model.to(device)
             model.eval()
 
-            # Test with dummy input
             # Assuming model expects (batch_size, seq_len, features)
             # Adjust based on your model architecture
             batch_size = 3
             seq_len = 60
 
-            # Determine input size based on model architecture
             if hasattr(model, "ticker_embedding"):
                 # Embedding-based model: use feature size before embedding concat
-                # LSTM input_size = feature_size + embedding_dim
                 # So feature_size = lstm_input_size - embedding_dim
                 embedding_dim = (
                     model.embedding_dim if hasattr(model, "embedding_dim") else 8
@@ -115,9 +111,7 @@ class ModelDeployer:
 
             dummy_input = torch.randn(batch_size, seq_len, input_size).to(device)
 
-            # Run inference
             with torch.no_grad():
-                # Check if model requires ticker_ids (embedding-based)
                 if hasattr(model, "ticker_embedding"):
                     num_tickers = (
                         model.num_tickers if hasattr(model, "num_tickers") else 8
@@ -127,7 +121,6 @@ class ModelDeployer:
                 else:
                     output = model(dummy_input)
 
-            # Validate output
             if output is None:
                 return False, "Model returned None"
 
@@ -173,7 +166,6 @@ class ModelDeployer:
         if metadata:
             config.update(metadata)
 
-        # Create parent directory if doesn't exist
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Write config
@@ -276,7 +268,6 @@ if __name__ == "__main__":
     # Test deployer
     deployer = ModelDeployer()
 
-    # Example: Deploy a model
     # result = deployer.deploy("models:/lstm-multi-ticker/5")
     # if result.success:
     #     print("✅ Deployment successful!")

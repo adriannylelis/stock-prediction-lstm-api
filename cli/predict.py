@@ -33,12 +33,10 @@ def predict(model_path: str, ticker: str, output: str):
     Example:
         stock-predict predict --model-path models/petr4.pt --ticker PETR4.SA
     """
-    # Fixed parameters
     lookback = 60  # Always use 60 days
     days_ahead = 1  # Always predict next day only
     device = get_device()
 
-    # Get project root directory (2 levels up from cli/predict.py)
     project_root = Path(__file__).parent.parent.resolve()
 
     # Convert model_path to absolute path relative to project root
@@ -46,7 +44,6 @@ def predict(model_path: str, ticker: str, output: str):
     if not model_path_obj.is_absolute():
         model_path = str(project_root / model_path)
 
-    # Same for output path if provided
     if output:
         output_path_obj = Path(output)
         if not output_path_obj.is_absolute():
@@ -77,7 +74,6 @@ def predict(model_path: str, ticker: str, output: str):
 
         # 2. Get latest data
         logger.info("📥 Fetching latest data...")
-        # Get last 2 years of data for prediction
         from datetime import datetime, timedelta
 
         end_date = datetime.now()
@@ -108,7 +104,6 @@ def predict(model_path: str, ticker: str, output: str):
         # For prediction, we need to fit on available data
         normalized_data = preprocessor.normalize(features_array, fit=True)
 
-        # Get last lookback points for prediction
         if len(normalized_data) < lookback:
             raise ValueError(
                 f"Not enough data. Need at least {lookback} points, got {len(normalized_data)}"
@@ -116,7 +111,6 @@ def predict(model_path: str, ticker: str, output: str):
 
         last_sequence = normalized_data[-lookback:]
 
-        # Create tensor
         X = (
             torch.tensor(last_sequence, dtype=torch.float32).unsqueeze(0).to(device)
         )  # (1, lookback, features)

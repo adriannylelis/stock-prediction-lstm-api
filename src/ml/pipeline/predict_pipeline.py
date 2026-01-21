@@ -80,7 +80,6 @@ class PredictPipeline:
         else:
             self.device = torch.device(device)
 
-        # Load model
         self.model = None
         self.scaler = None
         self._load_model()
@@ -170,7 +169,6 @@ class PredictPipeline:
                 logger.error(f"Failed to load from MLflow run: {e}")
                 raise
 
-        # ✅ OPÇÃO 3: Arquivo local (fallback)
         else:
             model_path = Path(self.model_identifier)
             if not model_path.exists():
@@ -181,7 +179,6 @@ class PredictPipeline:
                 model_path, map_location=self.device, weights_only=False
             )
 
-            # Create model with embedding architecture
             self.model = StockLSTM(
                 num_tickers=checkpoint.get("num_tickers", 1),
                 num_features=checkpoint.get(
@@ -262,7 +259,6 @@ class PredictPipeline:
         """Ingest latest data from yfinance."""
         from datetime import datetime, timedelta
 
-        # Get last 2 years of data to have enough for indicators + lookback
         end_date = datetime.now()
         start_date = end_date - timedelta(days=730)  # ~2 years
 
@@ -280,7 +276,6 @@ class PredictPipeline:
 
     def _preprocess_latest(self, df):
         """Preprocess latest data for prediction."""
-        # Take only last lookback points from Close column
         last_data = df[["Close"]].tail(self.lookback).values
 
         # Normalize
@@ -290,7 +285,6 @@ class PredictPipeline:
         # Store scaler for denormalization
         self.scaler = preprocessor.scaler
 
-        # Create sequence: (1, lookback, 1) shape
         X = torch.tensor(normalized, dtype=torch.float32).unsqueeze(0).to(self.device)
 
         return X

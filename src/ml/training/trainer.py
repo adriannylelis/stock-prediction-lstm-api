@@ -102,11 +102,9 @@ class Trainer:
         else:
             self.tracker = None
 
-        # Checkpoint directory
         self.checkpoint_dir = Path(checkpoint_dir)
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-        # Extra parameters for MLflow
         self.extra_params = extra_params or {}
 
         # Training history
@@ -295,7 +293,6 @@ class Trainer:
                 # Train
                 train_loss = self.train_epoch(train_loader)
 
-                # Validate
                 val_loss = self.validate_epoch(val_loader)
 
                 # Update history
@@ -303,7 +300,6 @@ class Trainer:
                 self.history["val_loss"].append(val_loss)
                 self.history["epoch"].append(epoch + 1)
 
-                # Log to MLflow
                 if self.tracker:
                     self.tracker.log_metrics(
                         {"train_loss": train_loss, "val_loss": val_loss}, step=epoch
@@ -371,7 +367,6 @@ class Trainer:
                         and self.X_train_sample is not None
                     ):
                         with torch.no_grad():
-                            # Check if model needs ticker_ids (embedding model)
                             if (
                                 hasattr(self, "ticker_ids_sample")
                                 and self.ticker_ids_sample is not None
@@ -387,13 +382,11 @@ class Trainer:
                                     f"Model expects num_tickers={self.model.num_tickers}"
                                 )
 
-                                # Create structured input as dictionary
                                 sample_input = {
                                     "features": features_sample,
                                     "ticker_ids": ticker_ids_sample,
                                 }
 
-                                # Get model output (model returns tuple: (outputs, hidden))
                                 sample_output, _ = self.model(
                                     torch.tensor(
                                         features_sample, dtype=torch.float32
@@ -404,7 +397,6 @@ class Trainer:
                                 )
                                 sample_output = sample_output.cpu().numpy()
 
-                                # Create input example with first sample
                                 input_example = {
                                     "features": features_sample[:1],
                                     "ticker_ids": ticker_ids_sample[:1],
@@ -465,7 +457,6 @@ class Trainer:
                             ],
                         )
 
-                        # Get latest version
                         client = MlflowClient()
                         run_id = self.tracker.get_run_id()
                         model_versions = client.search_model_versions(
@@ -689,7 +680,6 @@ class Trainer:
             )
             targ_2d = targets.reshape(-1, 1) if targets.ndim == 1 else targets
 
-            # Check if scaler has multiple features (need to extract Close column)
             if hasattr(scaler, "n_features_in_") and scaler.n_features_in_ > 1:
                 # Scaler is for all features - need to create dummy array with only Close column
                 # Close is at index 0 in the feature array
@@ -697,7 +687,6 @@ class Trainer:
                     f"Scaler has {scaler.n_features_in_} features, using only Close column (index 0) for denormalization"
                 )
 
-                # Create dummy arrays with zeros for other features, predictions/targets at index 0
                 dummy_pred = np.zeros((len(pred_2d), scaler.n_features_in_))
                 dummy_pred[:, 0] = pred_2d.flatten()
                 dummy_targ = np.zeros((len(targ_2d), scaler.n_features_in_))
@@ -714,7 +703,6 @@ class Trainer:
         # Calculate metrics
         metrics = calculate_all_metrics(targets, predictions)
 
-        # Log to MLflow
         if self.tracker and self.tracker.run:
             test_metrics = {f"test_{k}": v for k, v in metrics.items()}
             self.tracker.log_metrics(test_metrics)

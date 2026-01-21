@@ -51,7 +51,6 @@ class StockDataIngestion:
         self.start_date = self._parse_date(start_date)
         self.end_date = self._parse_date(end_date) if end_date else datetime.now()
 
-        # Validate dates
         if self.start_date >= self.end_date:
             raise ValueError(
                 f"start_date ({self.start_date}) must be before end_date ({self.end_date})"
@@ -143,14 +142,12 @@ class StockDataIngestion:
         """
         df = self.download(progress=progress)
 
-        # Validate required columns
         required_cols = ["Open", "High", "Low", "Close", "Volume"]
         missing_cols = [col for col in required_cols if col not in df.columns]
 
         if missing_cols:
             raise ValueError(f"Missing required columns: {missing_cols}")
 
-        # Check for NaN values
         nan_counts = df.isnull().sum()
         if nan_counts.any():
             logger.warning(f"Found NaN values: {nan_counts[nan_counts > 0].to_dict()}")
@@ -162,7 +159,6 @@ class StockDataIngestion:
                 logger.error(f"Found negative prices in column {col}")
                 raise ValueError(f"Invalid data: negative prices in {col}")
 
-        # Check for zero volume days
         zero_volume_days = (df["Volume"] == 0).sum()
         if zero_volume_days > 0:
             logger.warning(f"Found {zero_volume_days} days with zero volume")
